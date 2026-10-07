@@ -154,6 +154,28 @@
 	--d-on-hi: #160e09;
 }
 
+/* Amarelo: o acento e o tom médio ficam em mostarda escura para o texto claro ter contraste. */
+[data-palette='zeus'] {
+	--l-paper: #f6f1de;
+	--l-surface: #fffdf5;
+	--l-sunken: #ece4c6;
+	--l-ink: #3b3005;
+	--l-accent: #4d3d00;
+	--l-on-accent: #fff8dc;
+	--l-brass: #9a7400;
+	--l-hi: #ffd84a;
+	--l-on-hi: #3b3005;
+	--d-paper: #15120a;
+	--d-surface: #211c10;
+	--d-sunken: #0e0c06;
+	--d-ink: #f8f0d6;
+	--d-accent: #ffd84a;
+	--d-on-accent: #15120a;
+	--d-brass: #e0b520;
+	--d-hi: #ffd84a;
+	--d-on-hi: #15120a;
+}
+
 :root {
 	--paper: var(--l-paper);
 	--surface: var(--l-surface);

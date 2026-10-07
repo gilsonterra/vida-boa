@@ -7,7 +7,8 @@ export const PALETTES = [
 	{ id: 'poseidon', name: 'Poseidon', color: 'Azul', about: 'Deus dos mares' },
 	{ id: 'dionisio', name: 'Dionísio', color: 'Roxo', about: 'Deus do vinho e das festas' },
 	{ id: 'hestia', name: 'Héstia', color: 'Marrom', about: 'Deusa do lar e da lareira' },
-	{ id: 'apolo', name: 'Apolo', color: 'Laranja', about: 'Deus do sol e das artes' }
+	{ id: 'apolo', name: 'Apolo', color: 'Laranja', about: 'Deus do sol e das artes' },
+	{ id: 'zeus', name: 'Zeus', color: 'Amarelo', about: 'Rei dos deuses e senhor do raio' }
 ] as const;
 
 export type PaletteId = (typeof PALETTES)[number]['id'];
