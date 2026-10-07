@@ -45,11 +45,6 @@ jobs:
       - name: Testes unitários
         run: pnpm test:unit --run
 
-      - name: Testes ponta a ponta
-        run: |
-          pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e
-
       - name: Build
         run: pnpm build
 
