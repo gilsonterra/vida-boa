@@ -1,5 +1,11 @@
 import type { Table } from 'dexie';
-import type { Entity } from '../../domain/types';
+import type {
+	Account,
+	CategorizationRule,
+	Entity,
+	RecurringRule,
+	Transaction
+} from '../../domain/types';
 import { notifyChange } from '../changes';
 import { TABLES, type VidaBoaDB } from '../dexie/db';
 import { fromRemote, SYNC_TABLES, toRemote, type LocalTable } from './mapping';
@@ -87,9 +93,106 @@ export async function pullChanges(db: VidaBoaDB, remote: RemoteAdapter, userId: 
 }
 
 export async function syncOnce(db: VidaBoaDB, remote: RemoteAdapter, userId: string) {
-	const pushed = await pushChanges(db, remote, userId);
+	let pushed = await pushChanges(db, remote, userId);
 	const pulled = await pullChanges(db, remote, userId);
+	if (await mergeSeedDuplicates(db)) pushed += await pushChanges(db, remote, userId);
 	return { pushed, pulled };
+}
+
+/** Escolha estável: todo aparelho elege a mesma cópia, então as junções convergem. */
+const oldestFirst = (a: Entity, b: Entity) =>
+	a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
+
+/** Agrupa as linhas vivas por `keyOf`; devolve, para cada cópia sobrando, o id da que fica. */
+function duplicatesOf<T extends Entity>(rows: T[], keyOf: (r: T) => string): Map<string, string> {
+	const groups = new Map<string, T[]>();
+	for (const r of rows.filter((r) => !r.deletedAt)) {
+		const k = keyOf(r);
+		groups.set(k, [...(groups.get(k) ?? []), r]);
+	}
+	const keepOf = new Map<string, string>();
+	for (const group of groups.values()) {
+		const [keep, ...rest] = group.sort(oldestFirst);
+		for (const r of rest) keepOf.set(r.id, keep.id);
+	}
+	return keepOf;
+}
+
+/**
+ * Junta as cópias dos dados iniciais (tipos de conta, categorias e regras) que aparelhos
+ * diferentes criaram com ids próprios e subiram para a mesma conta. Fica a mais antiga; as
+ * referências passam para ela e as outras são excluídas (logicamente, para sincronizar).
+ * Só mexe em registros do sistema: o que o usuário criou com o mesmo nome continua separado.
+ */
+export async function mergeSeedDuplicates(db: VidaBoaDB): Promise<number> {
+	const tables = [
+		db.accountTypes,
+		db.accounts,
+		db.categories,
+		db.rules,
+		db.transactions,
+		db.recurring
+	];
+	const merged = await db.transaction('rw', tables, async () => {
+		const ts = new Date().toISOString();
+		let count = 0;
+		const retire = async (tbl: Table<Entity, string>, ids: Iterable<string>) => {
+			for (const id of ids) {
+				await tbl.update(id, { deletedAt: ts, updatedAt: ts });
+				count++;
+			}
+		};
+		const repoint = async <T extends Entity>(
+			tbl: Table<T, string>,
+			field: keyof T & string,
+			keepOf: Map<string, string>
+		) => {
+			if (!keepOf.size) return;
+			const rows = await tbl
+				.where(field)
+				.anyOf([...keepOf.keys()])
+				.toArray();
+			for (const r of rows) {
+				const to = keepOf.get(r[field] as string)!;
+				await tbl.update(r.id, { [field]: to, updatedAt: ts } as never);
+			}
+		};
+		const repointAll = async <T extends Entity>(
+			tbl: Table<T, string>,
+			field: keyof T & string,
+			keepOf: Map<string, string>
+		) => {
+			if (!keepOf.size) return;
+			for (const r of await tbl.toArray()) {
+				const to = keepOf.get(r[field] as string);
+				if (to) await tbl.update(r.id, { [field]: to, updatedAt: ts } as never);
+			}
+		};
+
+		const types = (await db.accountTypes.toArray()).filter((t) => t.isSystem);
+		const typeKeep = duplicatesOf(types, (t) => `${t.kind}|${t.name}`);
+		await repoint(db.accounts as Table<Account, string>, 'typeId', typeKeep);
+		await retire(db.accountTypes as Table<Entity, string>, typeKeep.keys());
+
+		const cats = (await db.categories.toArray()).filter((c) => c.isSystem);
+		const catKeep = duplicatesOf(cats, (c) => `${c.kind}|${c.name}`);
+		await repoint(db.rules as Table<CategorizationRule, string>, 'categoryId', catKeep);
+		// categoryId não é indexado nos lançamentos nem nos recorrentes: percorre a tabela.
+		await repointAll(db.transactions as Table<Transaction, string>, 'categoryId', catKeep);
+		await repointAll(db.recurring as Table<RecurringRule, string>, 'categoryId', catKeep);
+		await retire(db.categories as Table<Entity, string>, catKeep.keys());
+
+		// Depois de apontar para a mesma categoria, as regras iniciais repetidas ficam iguais.
+		const rules = (await db.rules.toArray()).filter((r) => r.isSystem);
+		const ruleKeep = duplicatesOf(
+			rules,
+			(r) => `${r.pattern}|${r.matchType}|${r.categoryId}|${r.accountId ?? ''}`
+		);
+		await retire(db.rules as Table<Entity, string>, ruleKeep.keys());
+		return count;
+	});
+	if (merged) notifyChange();
+	return merged;
 }
 
 /** Dono dos dados locais: impede misturar contas no mesmo aparelho. */

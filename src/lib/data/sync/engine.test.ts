@@ -137,6 +137,51 @@ describe('sincronização', () => {
 		);
 	});
 
+	it('aparelho com dados próprios numa conta existente junta as categorias iniciais', async () => {
+		const cloud = new FakeCloud();
+		const remote = cloud.adapter();
+		const a = await device();
+		const accA = await newAccount(a.store);
+		await adoptAccount(a.db, remote, USER);
+		await syncOnce(a.db, remote, USER);
+
+		// B usou o app antes de entrar: tem conta e lançamento ligados às SUAS cópias iniciais.
+		const b = await device();
+		const accB = await newAccount(b.store);
+		const mercadoB = (await b.store.categories.list()).find((c) => c.name === 'Mercado')!;
+		const tx = await b.store.transactions.create({
+			...base,
+			accountId: accB.id,
+			categoryId: mercadoB.id,
+			date: '2026-10-01',
+			amountCents: -2000,
+			description: 'Feira',
+			kind: 'expense'
+		});
+		await adoptAccount(b.db, remote, USER);
+		await syncOnce(b.db, remote, USER);
+		await syncOnce(a.db, remote, USER);
+
+		for (const dev of [a, b]) {
+			const cats = await dev.store.categories.list();
+			expect(cats.filter((c) => c.name === 'Mercado')).toHaveLength(1);
+			expect(cats.length).toBe(new Set(cats.map((c) => `${c.kind}|${c.name}`)).size);
+			const types = await dev.store.accountTypes.list();
+			expect(types.length).toBe(new Set(types.map((t) => t.name)).size);
+			const rules = await dev.store.rules.list();
+			expect(rules.length).toBe(
+				new Set(rules.map((r) => `${r.pattern}|${r.matchType}|${r.categoryId}`)).size
+			);
+			// O lançamento e as contas apontam para cópias que continuaram vivas.
+			const mercado = cats.find((c) => c.name === 'Mercado')!;
+			expect((await dev.store.transactions.get(tx.id))!.categoryId).toBe(mercado.id);
+			const typeIds = new Set(types.map((t) => t.id));
+			for (const acc of [accA, accB]) {
+				expect(typeIds.has((await dev.store.accounts.get(acc.id))!.typeId)).toBe(true);
+			}
+		}
+	});
+
 	it('conta nova num aparelho limpo recebe os dados iniciais', async () => {
 		const remote = new FakeCloud().adapter();
 		const db = new VidaBoaDB(`dev-${crypto.randomUUID()}`);
