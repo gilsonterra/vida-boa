@@ -12,7 +12,8 @@ export function stableUuid(input: string): string {
 		for (let i = 0; i < input.length; i++) {
 			h ^= input.charCodeAt(i);
 			h = Math.imul(h, 0x01000193) >>> 0;
-			h ^= h >>> 13;
+			// `^` devolve inteiro com sinal: sem o `>>> 0`, o hex sairia negativo ("-20b4bcf").
+			h = (h ^ (h >>> 13)) >>> 0;
 		}
 		return h.toString(16).padStart(8, '0');
 	});
@@ -21,3 +22,7 @@ export function stableUuid(input: string): string {
 	const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isUuid = (id: string) => UUID.test(id);

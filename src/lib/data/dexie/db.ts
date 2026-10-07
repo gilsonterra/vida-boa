@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { isUuid, stableUuid } from '../../domain/ids';
 import type {
 	Account,
 	AccountType,
@@ -43,6 +44,20 @@ export class VidaBoaDB extends Dexie {
 			meta: 'key'
 		});
 		this.version(2).stores({ loans: 'id', loanPrepayments: 'id, loanId' });
+		// Versões antigas do stableUuid às vezes geravam ids inválidos ("-20b4bcf-…"), que o
+		// Postgres recusa e travam a subida. Ocorrências de recorrentes ganham o id certo;
+		// as parcelas lançadas pelos financiamentos (que não lançam mais nada) saem.
+		this.version(3).upgrade(async (tx) => {
+			const table = tx.table<Transaction, string>('transactions');
+			const bad = await table.filter((t) => !isUuid(t.id)).toArray();
+			const ts = new Date().toISOString();
+			for (const t of bad) {
+				await table.delete(t.id);
+				if (!t.recurringId) continue;
+				const id = stableUuid(`recurring:${t.recurringId}:${t.date}`);
+				if (!(await table.get(id))) await table.add({ ...t, id, updatedAt: ts });
+			}
+		});
 	}
 }
 
