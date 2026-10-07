@@ -1,0 +1,28 @@
+{
+	"name": "Vida Boa",
+	"short_name": "Vida Boa",
+	"description": "Suas finanças pessoais, com calma e precisão.",
+	"lang": "pt-BR",
+	"start_url": "./",
+	"scope": "./",
+	"id": "./",
+	"display": "standalone",
+	"orientation": "portrait",
+	"background_color": "#F2EEE4",
+	"theme_color": "#F2EEE4",
+	"categories": ["finance", "productivity"],
+	"icons": [
+		{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+		{ "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+		{
+			"src": "icons/icon-maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
+	"shortcuts": [
+		{ "name": "Novo lançamento", "url": "./#/?novo=1" },
+		{ "name": "Importar extrato", "url": "./#/importar" }
+	]
+}

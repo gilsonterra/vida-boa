@@ -1,0 +1,385 @@
+@import 'tailwindcss';
+
+/* Fontes locais (só o subconjunto latino), para o app funcionar offline. */
+@font-face {
+	font-family: 'Fraunces';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('../lib/assets/fonts/fraunces-latin-opsz-normal.woff2') format('woff2-variations');
+}
+@font-face {
+	font-family: 'Fraunces';
+	font-style: italic;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('../lib/assets/fonts/fraunces-latin-opsz-italic.woff2') format('woff2-variations');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('../lib/assets/fonts/inter-latin-opsz-normal.woff2') format('woff2-variations');
+}
+
+/*
+ * Paletas com nomes de deuses gregos. Cada uma define só as cores primitivas para o modo
+ * claro (--l-*) e escuro (--d-*); tons de texto, divisórias e fundos suaves são derivados
+ * com color-mix. A paleta vem de data-palette no <html> (ou num elemento, para prévias);
+ * Deméter (verde) é a padrão.
+ */
+
+:root,
+[data-palette='demeter'] {
+	--l-paper: #f2eee4;
+	--l-surface: #fbf8f1;
+	--l-sunken: #e9e3d6;
+	--l-ink: #17231c;
+	--l-accent: #1f4d3a;
+	--l-on-accent: #f6f2e8;
+	--l-brass: #a8874a;
+	--d-paper: #0f1612;
+	--d-surface: #16201a;
+	--d-sunken: #0b110d;
+	--d-ink: #ece6d8;
+	--d-accent: #9cc4ad;
+	--d-on-accent: #0f1612;
+	--d-brass: #c9a96e;
+}
+
+[data-palette='afrodite'] {
+	--l-paper: #f6efed;
+	--l-surface: #fdf9f8;
+	--l-sunken: #eee2df;
+	--l-ink: #2a1a20;
+	--l-accent: #9b3f5c;
+	--l-on-accent: #fdf6f4;
+	--l-brass: #b0876a;
+	--d-paper: #171012;
+	--d-surface: #21171b;
+	--d-sunken: #110b0d;
+	--d-ink: #f1e6e8;
+	--d-accent: #e7a3b8;
+	--d-on-accent: #171012;
+	--d-brass: #d8ae92;
+}
+
+[data-palette='poseidon'] {
+	--l-paper: #eef1f1;
+	--l-surface: #f9fbfb;
+	--l-sunken: #e0e6e8;
+	--l-ink: #14212c;
+	--l-accent: #1f4868;
+	--l-on-accent: #f2f6f8;
+	--l-brass: #a8874a;
+	--d-paper: #0e141a;
+	--d-surface: #151d26;
+	--d-sunken: #0a0f14;
+	--d-ink: #e6ebee;
+	--d-accent: #9dc0dd;
+	--d-on-accent: #0e141a;
+	--d-brass: #c9a96e;
+}
+
+[data-palette='dionisio'] {
+	--l-paper: #f1eef2;
+	--l-surface: #faf8fb;
+	--l-sunken: #e5dfe8;
+	--l-ink: #221a28;
+	--l-accent: #553069;
+	--l-on-accent: #f6f1f8;
+	--l-brass: #a8874a;
+	--d-paper: #130f17;
+	--d-surface: #1c1622;
+	--d-sunken: #0e0b11;
+	--d-ink: #ece6ef;
+	--d-accent: #c3a6d8;
+	--d-on-accent: #130f17;
+	--d-brass: #c9a96e;
+}
+
+[data-palette='hestia'] {
+	--l-paper: #f3eee6;
+	--l-surface: #fbf8f3;
+	--l-sunken: #e8e0d3;
+	--l-ink: #2a1f18;
+	--l-accent: #6b4630;
+	--l-on-accent: #f8f2ea;
+	--l-brass: #a8874a;
+	--d-paper: #15110e;
+	--d-surface: #1f1915;
+	--d-sunken: #0f0c0a;
+	--d-ink: #eee6dc;
+	--d-accent: #d6b49a;
+	--d-on-accent: #15110e;
+	--d-brass: #c9a96e;
+}
+
+[data-palette='apolo'] {
+	--l-paper: #f6f0e7;
+	--l-surface: #fdf9f3;
+	--l-sunken: #ede2d3;
+	--l-ink: #2a1d14;
+	--l-accent: #b0541f;
+	--l-on-accent: #fdf6ee;
+	--l-brass: #a8874a;
+	--d-paper: #16110c;
+	--d-surface: #211912;
+	--d-sunken: #100c08;
+	--d-ink: #f1e8dc;
+	--d-accent: #f0a874;
+	--d-on-accent: #16110c;
+	--d-brass: #d9b36e;
+}
+
+:root {
+	--paper: var(--l-paper);
+	--surface: var(--l-surface);
+	--sunken: var(--l-sunken);
+	--ink: var(--l-ink);
+	--accent: var(--l-accent);
+	--on-accent: var(--l-on-accent);
+	--brass: var(--l-brass);
+	--danger: #8c3b2e;
+	/* Ganho e perda: fixos em todas as paletas, para não confundir com o acento. */
+	--gain: #1d7a50;
+	--loss: #b3373d;
+	--shade: rgb(0 0 0 / 0.18);
+	/* Quanto da tinta entra na cor dos ícones: 0 no claro, mais no escuro para dar contraste. */
+	--mark-ink: 0%;
+	color-scheme: light;
+	/* Derivados: valem para qualquer paleta e modo. */
+	--ink-2: color-mix(in oklab, var(--ink) 66%, var(--paper));
+	--ink-3: color-mix(in oklab, var(--ink) 46%, var(--paper));
+	--rule: color-mix(in oklab, var(--ink) 11%, transparent);
+	--rule-strong: color-mix(in oklab, var(--ink) 20%, transparent);
+	--accent-soft: color-mix(in oklab, var(--accent) 10%, transparent);
+	--positive: var(--gain);
+	--gain-soft: color-mix(in oklab, var(--gain) 13%, transparent);
+	--loss-soft: color-mix(in oklab, var(--loss) 12%, transparent);
+	--danger-soft: color-mix(in oklab, var(--danger) 10%, transparent);
+	--scrim: color-mix(in oklab, var(--ink) 34%, transparent);
+	--shadow-sheet: 0 -1px 0 var(--rule), 0 -18px 48px -12px var(--shade);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--paper: var(--d-paper);
+		--surface: var(--d-surface);
+		--sunken: var(--d-sunken);
+		--ink: var(--d-ink);
+		--accent: var(--d-accent);
+		--on-accent: var(--d-on-accent);
+		--brass: var(--d-brass);
+		--danger: #e09482;
+		--gain: #74d3a3;
+		--loss: #f3918b;
+		--shade: rgb(0 0 0 / 0.6);
+		--scrim: rgb(0 0 0 / 0.5);
+		--mark-ink: 45%;
+		color-scheme: dark;
+	}
+}
+
+:root[data-theme='dark'] {
+	--paper: var(--d-paper);
+	--surface: var(--d-surface);
+	--sunken: var(--d-sunken);
+	--ink: var(--d-ink);
+	--accent: var(--d-accent);
+	--on-accent: var(--d-on-accent);
+	--brass: var(--d-brass);
+	--danger: #e09482;
+	--gain: #74d3a3;
+	--loss: #f3918b;
+	--shade: rgb(0 0 0 / 0.6);
+	--scrim: rgb(0 0 0 / 0.5);
+	--mark-ink: 45%;
+	color-scheme: dark;
+}
+
+@theme inline {
+	--color-paper: var(--paper);
+	--color-surface: var(--surface);
+	--color-sunken: var(--sunken);
+	--color-ink: var(--ink);
+	--color-ink-2: var(--ink-2);
+	--color-ink-3: var(--ink-3);
+	--color-rule: var(--rule);
+	--color-rule-strong: var(--rule-strong);
+	--color-accent: var(--accent);
+	--color-accent-soft: var(--accent-soft);
+	--color-on-accent: var(--on-accent);
+	--color-brass: var(--brass);
+	--color-positive: var(--positive);
+	--color-gain: var(--gain);
+	--color-loss: var(--loss);
+	--color-danger: var(--danger);
+	--color-danger-soft: var(--danger-soft);
+	--font-serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+	--font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+	html {
+		-webkit-text-size-adjust: 100%;
+		-webkit-tap-highlight-color: transparent;
+		background: var(--paper);
+	}
+
+	body {
+		background: var(--paper);
+		color: var(--ink);
+		font-family: var(--font-sans);
+		font-size: 15px;
+		line-height: 1.5;
+		font-feature-settings: 'cv11', 'ss01';
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		overscroll-behavior-y: none;
+		min-height: 100dvh;
+	}
+
+	h1,
+	h2,
+	h3 {
+		font-family: var(--font-serif);
+		font-optical-sizing: auto;
+		font-weight: 400;
+		letter-spacing: -0.01em;
+		line-height: 1.15;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+		border-radius: 6px;
+	}
+
+	button {
+		cursor: pointer;
+		touch-action: manipulation;
+	}
+
+	input,
+	select,
+	textarea {
+		font: inherit;
+		color: inherit;
+	}
+
+	::selection {
+		background: var(--accent-soft);
+	}
+}
+
+@layer utilities {
+	/* Algarismos tabulares em serifa: a marca visual do app. */
+	.figures {
+		font-family: var(--font-serif);
+		font-optical-sizing: auto;
+		font-variant-numeric: lining-nums tabular-nums;
+	}
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+	.hairline {
+		border-color: var(--rule);
+	}
+	.pb-safe {
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+	.pt-safe {
+		padding-top: env(safe-area-inset-top);
+	}
+	/* Ícone na cor da categoria/conta, legível nos dois temas. */
+	.tinted {
+		color: color-mix(in oklab, var(--c), var(--ink) var(--mark-ink));
+		background: color-mix(in oklab, var(--c) 14%, transparent);
+	}
+	.no-scrollbar {
+		scrollbar-width: none;
+	}
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* Transição entre telas: troca suave, sem chamar atenção. */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(root) {
+		animation: 140ms ease-out both vb-fade-out;
+	}
+	::view-transition-new(root) {
+		animation: 260ms var(--ease-out-quint) both vb-fade-in;
+	}
+	::view-transition-old(tabbar),
+	::view-transition-new(tabbar) {
+		animation: none;
+	}
+}
+
+@keyframes vb-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes vb-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+}
+
+@layer components {
+	.input {
+		display: block;
+		width: 100%;
+		min-height: 48px;
+		padding: 12px 14px;
+		background: var(--surface);
+		border: 1px solid var(--rule-strong);
+		border-radius: 12px;
+		transition: border-color 120ms;
+		appearance: none;
+	}
+	.input::placeholder {
+		color: var(--ink-3);
+	}
+	.input:focus {
+		outline: none;
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px var(--accent-soft);
+	}
+	select.input {
+		padding-right: 40px;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8c80' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 16px center;
+	}
+	.field-label {
+		display: block;
+		margin-bottom: 6px;
+		font-size: 13px;
+		color: var(--ink-2);
+	}
+	/* Linha de lista com filete fino, sem cartões: o ritmo vem do espaçamento. */
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		min-height: 60px;
+		padding: 10px 0;
+		border-bottom: 1px solid var(--rule);
+	}
+	.row:last-child {
+		border-bottom: 0;
+	}
+	.panel {
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 20px;
+	}
+}
