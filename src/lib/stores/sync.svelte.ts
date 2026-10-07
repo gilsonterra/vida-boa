@@ -3,6 +3,7 @@ import { db, store } from '../data';
 import { onChange } from '../data/changes';
 import {
 	adoptAccount,
+	seedIfNewAccount,
 	clearLocal,
 	getOwner,
 	syncOnce,
@@ -143,10 +144,7 @@ async function start(user: SessionUser): Promise<boolean> {
 	stop();
 	await adoptAccount(db, remote!, user.id);
 	// Conta nova e aparelho limpo: recria os dados iniciais, que sobem na sincronização.
-	if ((await db.categories.count()) === 0) {
-		await db.meta.bulkDelete(['seeded', 'seedVersion']);
-		await store.ensureSeed();
-	}
+	await seedIfNewAccount(db, remote!, () => store.ensureSeed()).catch(() => false);
 	cloud.user = user;
 	cloud.status = 'idle';
 	writeCachedUser(user);

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Transaction } from '../../domain/types';
 import { VidaBoaDB } from '../dexie/db';
 import { createDexieStore } from '../dexie/store';
-import { adoptAccount, syncOnce, type RemoteAdapter } from './engine';
+import { adoptAccount, seedIfNewAccount, syncOnce, type RemoteAdapter } from './engine';
 
 /**
  * Nuvem em memória com as mesmas regras do Postgres: chave (user_id, id), vence o
@@ -112,6 +112,37 @@ describe('sincronização', () => {
 		await syncOnce(a.db, remote, USER);
 		await syncOnce(b.db, remote, USER);
 		expect(await b.store.transactions.list()).toHaveLength(0);
+	});
+
+	it('aparelho novo numa conta existente não duplica os dados iniciais', async () => {
+		const cloud = new FakeCloud();
+		const remote = cloud.adapter();
+		const a = await device();
+		await adoptAccount(a.db, remote, USER);
+		expect(await seedIfNewAccount(a.db, remote, () => a.store.ensureSeed())).toBe(false);
+		await syncOnce(a.db, remote, USER);
+
+		// Mesmo fluxo do login: adota (limpa o local), decide se semeia e sincroniza.
+		const b = await device();
+		await adoptAccount(b.db, remote, USER);
+		expect(await seedIfNewAccount(b.db, remote, () => b.store.ensureSeed())).toBe(false);
+		await syncOnce(b.db, remote, USER);
+		await syncOnce(a.db, remote, USER);
+
+		const count = (await a.store.categories.list()).length;
+		expect((await b.store.categories.list()).length).toBe(count);
+		expect((await a.store.categories.list()).length).toBe(count);
+		expect((await b.store.accountTypes.list()).length).toBe(
+			(await a.store.accountTypes.list()).length
+		);
+	});
+
+	it('conta nova num aparelho limpo recebe os dados iniciais', async () => {
+		const remote = new FakeCloud().adapter();
+		const db = new VidaBoaDB(`dev-${crypto.randomUUID()}`);
+		const store = createDexieStore(db);
+		expect(await seedIfNewAccount(db, remote, () => store.ensureSeed())).toBe(true);
+		expect((await store.categories.list()).length).toBeGreaterThan(0);
 	});
 
 	it('em conflito, vence a edição mais recente', async () => {

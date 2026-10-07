@@ -117,6 +117,23 @@ export async function adoptAccount(db: VidaBoaDB, remote: RemoteAdapter, userId:
 	await db.meta.put({ key: 'sync:owner', value: userId });
 }
 
+/**
+ * Recria os dados iniciais só quando a conta é nova de verdade: aparelho sem categorias e nuvem
+ * vazia. Se a nuvem já tem dados (aparelho recém-adotado), eles chegam no pull; recriar aqui
+ * subiria uma segunda cópia das categorias, tipos e regras, com ids diferentes.
+ */
+export async function seedIfNewAccount(
+	db: VidaBoaDB,
+	remote: RemoteAdapter,
+	seed: () => Promise<void>
+): Promise<boolean> {
+	if ((await db.categories.count()) > 0) return false;
+	if (await remote.hasData()) return false;
+	await db.meta.bulkDelete(['seeded', 'seedVersion']);
+	await seed();
+	return true;
+}
+
 /** Apaga os dados locais e o estado de sincronização, mantendo os iniciais como "já criados". */
 export async function clearLocal(db: VidaBoaDB) {
 	await db.transaction('rw', [...TABLES.map((t) => db.table(t)), db.meta], async () => {
