@@ -29,12 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+
+      # pnpm via Corepack (vem com o Node), na versão de "packageManager" do package.json.
+      # Evita depender de uma action de terceiros num workflow que publica o site.
+      - run: corepack enable
 
       - run: pnpm install --frozen-lockfile
 
