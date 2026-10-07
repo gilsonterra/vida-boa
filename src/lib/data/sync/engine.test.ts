@@ -147,6 +147,40 @@ describe('sincronização', () => {
 		expect(final(await b.store.transactions.get(tx.id))).toBe('Editado em B');
 	});
 
+	it('dois aparelhos lançando o mesmo recorrente não duplicam', async () => {
+		const cloud = new FakeCloud();
+		const remote = cloud.adapter();
+		const a = await device();
+		const acc = await newAccount(a.store);
+		await a.store.recurring.create({
+			description: 'Aluguel',
+			accountId: acc.id,
+			categoryId: null,
+			kind: 'expense',
+			amountCents: 100000,
+			frequency: 'monthly',
+			startDate: '2026-09-05',
+			endDate: null,
+			nextDate: '2026-09-05',
+			active: true
+		});
+		await adoptAccount(a.db, remote, USER);
+		await syncOnce(a.db, remote, USER);
+		const b = await device();
+		await adoptAccount(b.db, remote, USER);
+		await syncOnce(b.db, remote, USER);
+
+		// Os dois aparelhos abrem no mesmo dia, offline, e lançam as ocorrências vencidas.
+		await a.store.recurring.materialize('2026-10-06');
+		await b.store.recurring.materialize('2026-10-06');
+		await syncOnce(a.db, remote, USER);
+		await syncOnce(b.db, remote, USER);
+		await syncOnce(a.db, remote, USER);
+		const dates = (await a.store.transactions.list()).map((t) => t.date).sort();
+		expect(dates).toEqual(['2026-09-05', '2026-10-05']);
+		expect((await b.store.transactions.list()).length).toBe(2);
+	});
+
 	it('aparelho com dados próprios sobe tudo ao entrar numa conta vazia', async () => {
 		const cloud = new FakeCloud();
 		const remote = cloud.adapter();

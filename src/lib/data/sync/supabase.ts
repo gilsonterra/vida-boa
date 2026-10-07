@@ -12,7 +12,15 @@ export function getClient(): Promise<SupabaseClient> {
 	if (!cloudAvailable) throw new Error('Supabase não configurado.');
 	clientPromise ??= import('@supabase/supabase-js').then(({ createClient }) =>
 		createClient(PUBLIC_SUPABASE_URL!, PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
-			auth: { persistSession: true, autoRefreshToken: true, storageKey: 'vb:auth' }
+			auth: {
+				persistSession: true,
+				autoRefreshToken: true,
+				storageKey: 'vb:auth',
+				// PKCE: os links de e-mail voltam com ?code= (e não com tokens no #), o que não
+				// conflita com as rotas por hash do app (/#/extrato).
+				flowType: 'pkce',
+				detectSessionInUrl: true
+			}
 		})
 	);
 	return clientPromise;

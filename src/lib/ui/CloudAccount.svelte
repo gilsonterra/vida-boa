@@ -1,20 +1,10 @@
 <script lang="ts">
 	import { CloudCheck, CloudOff, LoaderCircle, TriangleAlert } from '@lucide/svelte';
-	import { cloud, signIn, signOut, signUp, syncNow } from '../stores/sync.svelte';
+	import { cloud, signOut, syncNow } from '../stores/sync.svelte';
 	import { confirmAction, toast } from '../stores/ui.svelte';
 	import Button from './Button.svelte';
-	import Segmented from './Segmented.svelte';
-	import Sheet from './Sheet.svelte';
 
-	/** Seção de Ajustes: entrar, criar conta, estado da sincronização e sair. */
-
-	let open = $state(false);
-	let mode = $state<'signin' | 'signup'>('signin');
-	let email = $state('');
-	let password = $state('');
-	let error = $state('');
-	let busy = $state(false);
-	let confirmSent = $state(false);
+	/** Seção de Ajustes: conta conectada, estado da sincronização e saída. */
 
 	const rel = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
 	function since(iso: string | null) {
@@ -23,152 +13,55 @@
 		return Math.abs(s) < 60 ? 'agora' : rel.format(Math.round(s / 60), 'minute');
 	}
 
-	async function submit(e: SubmitEvent) {
-		e.preventDefault();
-		error = '';
-		if (!/^\S+@\S+\.\S+$/.test(email)) return (error = 'Informe um e-mail válido.');
-		if (password.length < 6) return (error = 'A senha precisa ter pelo menos 6 caracteres.');
-		busy = true;
-		try {
-			const result =
-				mode === 'signin' ? await signIn(email, password) : await signUp(email, password);
-			if (result === 'confirm') confirmSent = true;
-			else if (result) error = result;
-			else {
-				open = false;
-				password = '';
-				toast('Conectado. Seus dados estão sendo sincronizados.');
-			}
-		} finally {
-			busy = false;
-		}
-	}
-
 	async function leave() {
 		const erase = await confirmAction({
-			title: 'Sair da conta',
+			title: 'Sair e apagar deste aparelho?',
 			message:
-				'Os dados continuam salvos na nuvem. Quer apagar também a cópia deste aparelho? Recomendado se o aparelho não for só seu.',
-			confirmLabel: 'Sair e apagar daqui',
+				'Seus dados continuam na sua conta. Só a cópia deste aparelho será apagada. Recomendado em aparelhos que não são só seus.',
+			confirmLabel: 'Sair e apagar',
 			destructive: true
 		});
-		await signOut(erase);
-		toast(erase ? 'Você saiu e os dados deste aparelho foram apagados' : 'Você saiu da conta');
+		if (!erase) return;
+		await signOut(true);
+		toast('Você saiu e os dados deste aparelho foram apagados');
 	}
 
 	async function leaveKeeping() {
 		await signOut(false);
-		toast('Você saiu. Os dados continuam neste aparelho.');
+		toast('Você saiu da conta');
 	}
 </script>
 
-{#if cloud.available}
+{#if cloud.user}
 	<section>
-		<h2>Conta e sincronização</h2>
-		{#if cloud.user}
-			<div class="status">
-				<span class="ico {cloud.status}">
-					{#if cloud.status === 'syncing'}<LoaderCircle size={18} class="spin" />
-					{:else if cloud.status === 'offline'}<CloudOff size={18} />
-					{:else if cloud.status === 'error'}<TriangleAlert size={18} />
-					{:else}<CloudCheck size={18} />{/if}
-				</span>
-				<div>
-					<strong>{cloud.user.email}</strong>
-					<small>
-						{#if cloud.status === 'syncing'}Sincronizando…
-						{:else if cloud.status === 'offline'}Sem internet. As mudanças sobem quando a conexão
-							voltar.
-						{:else if cloud.status === 'error'}Não foi possível sincronizar: {cloud.error}
-						{:else if cloud.lastSyncAt}Sincronizado {since(cloud.lastSyncAt)}
-						{:else}Pronto para sincronizar{/if}
-					</small>
-				</div>
+		<h2>Conta</h2>
+		<div class="status">
+			<span class="ico {cloud.status}">
+				{#if cloud.status === 'syncing'}<LoaderCircle size={18} class="spin" />
+				{:else if cloud.status === 'offline'}<CloudOff size={18} />
+				{:else if cloud.status === 'error'}<TriangleAlert size={18} />
+				{:else}<CloudCheck size={18} />{/if}
+			</span>
+			<div>
+				<strong>{cloud.user.email}</strong>
+				<small>
+					{#if cloud.status === 'syncing'}Sincronizando…
+					{:else if cloud.status === 'offline'}Sem internet. As mudanças sobem quando a conexão
+						voltar.
+					{:else if cloud.status === 'error'}Não foi possível sincronizar: {cloud.error}
+					{:else if cloud.lastSyncAt}Sincronizado {since(cloud.lastSyncAt)}
+					{:else}Pronto para sincronizar{/if}
+				</small>
 			</div>
-			<div class="buttons">
-				<Button variant="secondary" onclick={syncNow} disabled={cloud.status === 'syncing'}>
-					Sincronizar agora
-				</Button>
-				<Button variant="secondary" onclick={leaveKeeping}>Sair</Button>
-				<Button variant="danger" onclick={leave}>Sair e apagar daqui</Button>
-			</div>
-		{:else}
-			<p class="text">
-				Entre para guardar seus dados na nuvem e usar o Vida Boa em mais de um aparelho. Tudo
-				continua funcionando sem internet; a sincronização acontece em segundo plano.
-			</p>
-			<div class="buttons">
-				<Button
-					onclick={() => {
-						mode = 'signin';
-						confirmSent = false;
-						open = true;
-					}}>Entrar</Button
-				>
-				<Button
-					variant="secondary"
-					onclick={() => {
-						mode = 'signup';
-						confirmSent = false;
-						open = true;
-					}}>Criar conta</Button
-				>
-			</div>
-		{/if}
+		</div>
+		<div class="buttons">
+			<Button variant="secondary" onclick={syncNow} disabled={cloud.status === 'syncing'}>
+				Sincronizar agora
+			</Button>
+			<Button variant="secondary" onclick={leaveKeeping}>Sair</Button>
+			<Button variant="danger" onclick={leave}>Sair e apagar daqui</Button>
+		</div>
 	</section>
-
-	<Sheet bind:open title={mode === 'signin' ? 'Entrar' : 'Criar conta'}>
-		{#if confirmSent}
-			<p class="text">
-				Enviamos um link de confirmação para <strong>{email}</strong>. Abra o e-mail, confirme e
-				depois entre com sua senha.
-			</p>
-			<Button
-				block
-				onclick={() => {
-					confirmSent = false;
-					mode = 'signin';
-				}}>Já confirmei, quero entrar</Button
-			>
-		{:else}
-			<form id="auth-form" onsubmit={submit} novalidate>
-				<Segmented
-					label="Ação"
-					bind:value={mode}
-					options={[
-						{ value: 'signin', label: 'Entrar' },
-						{ value: 'signup', label: 'Criar conta' }
-					]}
-				/>
-				<label>
-					<span class="field-label">E-mail</span>
-					<input class="input" type="email" autocomplete="email" bind:value={email} />
-				</label>
-				<label>
-					<span class="field-label">Senha</span>
-					<input
-						class="input"
-						type="password"
-						autocomplete={mode === 'signin' ? 'current-password' : 'new-password'}
-						bind:value={password}
-					/>
-				</label>
-				{#if mode === 'signup'}
-					<p class="hint">
-						Os dados que já estão neste aparelho vão para a sua conta na primeira sincronização.
-					</p>
-				{/if}
-				{#if error}<p class="err" role="alert">{error}</p>{/if}
-			</form>
-		{/if}
-		{#snippet footer()}
-			{#if !confirmSent}
-				<Button type="submit" form="auth-form" size="lg" block disabled={busy}>
-					{busy ? 'Aguarde…' : mode === 'signin' ? 'Entrar' : 'Criar conta'}
-				</Button>
-			{/if}
-		{/snippet}
-	</Sheet>
 {/if}
 
 <style>
@@ -189,6 +82,7 @@
 	.status strong {
 		display: block;
 		font-weight: 500;
+		overflow-wrap: anywhere;
 	}
 	.status small {
 		display: block;
@@ -226,23 +120,5 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 10px;
-	}
-	.text {
-		color: var(--ink-2);
-		margin-bottom: 14px;
-		max-width: 56ch;
-	}
-	form {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-	.hint {
-		font-size: 13px;
-		color: var(--ink-3);
-	}
-	.err {
-		color: var(--danger);
-		font-size: 14px;
 	}
 </style>

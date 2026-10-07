@@ -8,11 +8,14 @@
 	import { applyUpdate, registerServiceWorker, requestPersistentStorage } from '#lib/pwa.ts';
 	import { provideAppData } from '#lib/stores/data.svelte.ts';
 	import { initInstall } from '#lib/stores/install.svelte.ts';
-	import { initCloud } from '#lib/stores/sync.svelte.ts';
+	import { cloud, initCloud } from '#lib/stores/sync.svelte.ts';
 	import { initTheme } from '#lib/stores/theme.svelte.ts';
 	import { openEditor, ui } from '#lib/stores/ui.svelte.ts';
+	import AuthScreen from '#lib/ui/AuthScreen.svelte';
 	import Navigation from '#lib/ui/Navigation.svelte';
 	import Overlays from '#lib/ui/Overlays.svelte';
+	import Splash from '#lib/ui/Splash.svelte';
+	import SyncIndicator from '#lib/ui/SyncIndicator.svelte';
 	import TransactionEditor from '#lib/ui/TransactionEditor.svelte';
 	import type { LayoutProps } from './$types';
 
@@ -20,17 +23,25 @@
 
 	provideAppData();
 
+	/** O splash fica pelo menos um instante, para não piscar. */
+	let minSplashDone = $state(false);
+	const showSplash = $derived(!cloud.ready || !minSplashDone);
+	const signedIn = $derived(!!cloud.user && !cloud.recovery);
+
 	onMount(() => {
 		initTheme();
 		initInstall();
 		registerServiceWorker();
 		requestPersistentStorage();
-		store
-			.ensureSeed()
-			.then(() => store.recurring.materialize(today()))
-			.then(() => initCloud());
+		setTimeout(() => (minSplashDone = true), 700);
+		// Dados iniciais antes da sessão: ao entrar, a conta decide se eles sobem ou são trocados.
+		store.ensureSeed().then(() => initCloud());
+	});
 
-		// Atalho do ícone instalado: "Novo lançamento".
+	// Com a sessão aberta: lança recorrentes vencidos e atende o atalho "Novo lançamento".
+	$effect(() => {
+		if (!signedIn) return;
+		void store.recurring.materialize(today());
 		if (page.url.searchParams.has('novo')) {
 			openEditor({ defaults: { kind: 'expense' } });
 			replaceState(page.url.pathname, {});
@@ -50,19 +61,39 @@
 	});
 </script>
 
-<Navigation />
+{#if !cloud.ready}
+	<!-- Só o splash enquanto a sessão é verificada. -->
+{:else if !cloud.available}
+	<div class="config">
+		<h1>Configuração incompleta</h1>
+		<p>
+			Este build não tem as variáveis do Supabase (PUBLIC_SUPABASE_URL e
+			PUBLIC_SUPABASE_PUBLISHABLE_KEY). Veja o README.
+		</p>
+	</div>
+{:else if !signedIn}
+	<AuthScreen />
+{:else}
+	<Navigation />
 
-<main>
-	{@render children()}
-</main>
+	<main>
+		{@render children()}
+	</main>
 
-{#if ui.editor}
-	{#key ui.editor}
-		<TransactionEditor request={ui.editor} />
-	{/key}
+	{#if ui.editor}
+		{#key ui.editor}
+			<TransactionEditor request={ui.editor} />
+		{/key}
+	{/if}
+
+	<SyncIndicator />
 {/if}
 
 <Overlays />
+
+{#if showSplash}
+	<Splash />
+{/if}
 
 {#if ui.updateReady}
 	<div class="update" role="status">
@@ -82,6 +113,15 @@
 			margin-left: max(232px, calc(232px + (100vw - 232px - 760px) / 2));
 			padding: 24px 24px 64px;
 		}
+	}
+	.config {
+		max-width: 480px;
+		margin: 20vh auto 0;
+		padding: 0 24px;
+	}
+	.config p {
+		margin-top: 12px;
+		color: var(--ink-2);
 	}
 	.update {
 		position: fixed;

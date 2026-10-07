@@ -1,4 +1,5 @@
 import { addDays, daysBetween } from '../../domain/dates';
+import { stableUuid } from '../../domain/ids';
 import { dueOccurrences } from '../../domain/recurrence';
 import { SEED_ACCOUNT_TYPES, SEED_CATEGORIES, SEED_RULES, SEED_VERSION } from '../../domain/seed';
 import type {
@@ -259,9 +260,14 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 					for (const rule of rules) {
 						const { dates, nextDate } = dueOccurrences(rule, upTo);
 						if (dates.length === 0) continue;
-						await db.transactions.bulkAdd(dates.map((date) => recurringTransaction(rule, date)));
+						// Id estável por regra+data: outro aparelho que lançar a mesma ocorrência
+						// gera o mesmo registro, e a sincronização não duplica.
+						const occurrences = dates.map((date) => recurringTransaction(rule, date));
+						const existing = await db.transactions.bulkGet(occurrences.map((o) => o.id));
+						const fresh = occurrences.filter((_, i) => !existing[i]);
+						if (fresh.length) await db.transactions.bulkAdd(fresh);
 						await db.recurring.update(rule.id, { nextDate, updatedAt: now() });
-						created += dates.length;
+						created += fresh.length;
 					}
 				});
 				if (created) notifyChange();
@@ -436,6 +442,7 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 
 function recurringTransaction(rule: RecurringRule, date: string): Transaction {
 	return stamp<Transaction>({
+		id: stableUuid(`recurring:${rule.id}:${date}`),
 		accountId: rule.accountId,
 		date,
 		amountCents: rule.kind === 'expense' ? -Math.abs(rule.amountCents) : Math.abs(rule.amountCents),

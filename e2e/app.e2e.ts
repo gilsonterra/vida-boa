@@ -1,11 +1,49 @@
 import { expect, test } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { login, mockSupabase, USER } from './supabase-mock';
 
 const OFX = fileURLToPath(new URL('./fixtures/extrato-itau.ofx', import.meta.url));
 
+test.describe('acesso', () => {
+	test('sem login, só a tela de entrada; senha errada é recusada', async ({ page }) => {
+		await mockSupabase(page);
+		await page.goto('./#/extrato');
+		await expect(page.getByRole('heading', { name: 'Que bom ver você' })).toBeVisible();
+		await expect(page.getByRole('navigation', { name: 'Principal' })).toHaveCount(0);
+
+		await page.getByLabel('E-mail').fill(USER.email);
+		await page.getByLabel('Senha', { exact: true }).fill('errada');
+		await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+		await expect(page.getByRole('alert')).toHaveText('E-mail ou senha incorretos.');
+	});
+
+	test('cadastro com confirmação por e-mail e recuperação de senha', async ({ page }) => {
+		await mockSupabase(page);
+		await page.goto('./');
+		await page.getByRole('button', { name: 'Criar conta' }).click();
+		await page.getByLabel('E-mail').fill('confirmar@exemplo.com');
+		await page.getByLabel('Senha', { exact: true }).fill('outra-senha-123');
+		await page.getByLabel('Confirme a senha').fill('outra-senha-123');
+		await page.getByRole('button', { name: 'Criar conta' }).click();
+		await expect(page.getByText(/Enviamos um link de confirmação/)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Voltar para entrar' }).click();
+		await page.getByRole('button', { name: 'Esqueci minha senha' }).click();
+		await page.getByLabel('E-mail').fill(USER.email);
+		await page.getByRole('button', { name: 'Enviar link' }).click();
+		await expect(page.getByText(/você vai receber um link/)).toBeVisible();
+	});
+
+	test('sair volta para a tela de entrada', async ({ page }) => {
+		await login(page);
+		await page.goto('./#/ajustes');
+		await page.getByRole('button', { name: 'Sair', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'Que bom ver você' })).toBeVisible();
+	});
+});
+
 test('cadastra conta, importa OFX e não duplica ao reimportar', async ({ page }) => {
-	await page.goto('./');
-	await expect(page.getByRole('heading', { name: /Tudo o que é seu/ })).toBeVisible();
+	await login(page);
 
 	await page.getByRole('button', { name: 'Cadastrar primeira conta' }).click();
 	await page.getByLabel('Nome').fill('Itaú');
@@ -31,7 +69,7 @@ test('cadastra conta, importa OFX e não duplica ao reimportar', async ({ page }
 });
 
 test('lançamento manual entra no extrato e pode ser desfeito', async ({ page }) => {
-	await page.goto('./');
+	await login(page);
 	await page.getByRole('button', { name: 'Cadastrar primeira conta' }).click();
 	await page.getByLabel('Nome').fill('Conta');
 	await page.getByRole('button', { name: 'Salvar conta' }).click();
@@ -55,8 +93,8 @@ test('lançamento manual entra no extrato e pode ser desfeito', async ({ page })
 	await expect(page.getByText('Floricultura')).toBeVisible();
 });
 
-test('abre sem internet depois da primeira visita', async ({ page, context }) => {
-	await page.goto('./');
+test('logado, abre sem internet depois da primeira visita', async ({ page, context }) => {
+	await login(page);
 	// Espera o service worker assumir a página (clients.claim) antes de cortar a rede.
 	await page.waitForFunction(() => !!navigator.serviceWorker.controller);
 	await context.setOffline(true);
@@ -67,6 +105,7 @@ test('abre sem internet depois da primeira visita', async ({ page, context }) =>
 });
 
 test('escolhe uma paleta em Ajustes e ela continua após recarregar', async ({ page }) => {
+	await login(page);
 	await page.goto('./#/ajustes');
 	await page.getByRole('radio', { name: /Afrodite/ }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-palette', 'afrodite');
