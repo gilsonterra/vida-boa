@@ -5,7 +5,7 @@ export default defineConfig({
 	testDir: 'e2e',
 	testMatch: '**/*.e2e.ts',
 	webServer: {
-		command: 'npm run build && npm run preview -- --port 4174 --strictPort',
+		command: 'pnpm build && pnpm preview --port 4174 --strictPort',
 		env: { BASE_PATH: '/vida-boa' },
 		port: 4174,
 		reuseExistingServer: false

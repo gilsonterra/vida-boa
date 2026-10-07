@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ChevronRight, Eye, EyeOff, FileUp, Gem } from '@lucide/svelte';
+	import {
+		ChevronRight,
+		CloudCheck,
+		CloudOff,
+		Eye,
+		EyeOff,
+		FileUp,
+		Gem,
+		LoaderCircle,
+		TriangleAlert
+	} from '@lucide/svelte';
 	import { addDays, formatDayShort, monthKey, today } from '#lib/domain/dates.ts';
 	import { upcomingDates } from '#lib/domain/recurrence.ts';
 	import {
@@ -11,6 +21,7 @@
 		summarize
 	} from '#lib/domain/reports.ts';
 	import { useAppData } from '#lib/stores/data.svelte.ts';
+	import { cloud } from '#lib/stores/sync.svelte.ts';
 	import { togglePrivacy, ui } from '#lib/stores/ui.svelte.ts';
 	import AccountEditor from '#lib/ui/AccountEditor.svelte';
 	import Amount from '#lib/ui/Amount.svelte';
@@ -65,6 +76,16 @@
 			.slice(0, 4)
 	);
 
+	const cloudLabel = $derived(
+		cloud.status === 'syncing'
+			? 'Sincronizando'
+			: cloud.status === 'offline'
+				? 'Sem internet; sincroniza quando voltar'
+				: cloud.status === 'error'
+					? 'Erro ao sincronizar'
+					: 'Sincronizado'
+	);
+
 	const greeting = (() => {
 		const h = new Date().getHours();
 		return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
@@ -74,12 +95,29 @@
 <div class="page pt-safe">
 	<div class="top">
 		<span class="brand"><Gem size={22} strokeWidth={1.5} class="gem" />Vida Boa</span>
-		<IconButton label={ui.privacy ? 'Mostrar valores' : 'Ocultar valores'} onclick={togglePrivacy}>
-			{#if ui.privacy}<EyeOff size={20} strokeWidth={1.5} />{:else}<Eye
-					size={20}
-					strokeWidth={1.5}
-				/>{/if}
-		</IconButton>
+		<span class="top-actions">
+			{#if cloud.user}
+				<IconButton label={cloudLabel} href={resolve('/ajustes')}>
+					{#if cloud.status === 'syncing'}<LoaderCircle size={19} strokeWidth={1.5} class="spin" />
+					{:else if cloud.status === 'offline'}<CloudOff size={19} strokeWidth={1.5} />
+					{:else if cloud.status === 'error'}<TriangleAlert
+							size={19}
+							strokeWidth={1.5}
+							class="warn"
+						/>
+					{:else}<CloudCheck size={19} strokeWidth={1.5} />{/if}
+				</IconButton>
+			{/if}
+			<IconButton
+				label={ui.privacy ? 'Mostrar valores' : 'Ocultar valores'}
+				onclick={togglePrivacy}
+			>
+				{#if ui.privacy}<EyeOff size={20} strokeWidth={1.5} />{:else}<Eye
+						size={20}
+						strokeWidth={1.5}
+					/>{/if}
+			</IconButton>
+		</span>
 	</div>
 
 	{#if data.ready && data.accounts.length === 0}
@@ -215,6 +253,22 @@
 	}
 	.brand :global(.gem) {
 		color: var(--brass);
+	}
+	.top-actions {
+		display: flex;
+		align-items: center;
+		color: var(--ink-2);
+	}
+	.top-actions :global(.spin) {
+		animation: spin 900ms linear infinite;
+	}
+	.top-actions :global(.warn) {
+		color: var(--loss);
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 	/* Em telas largas a marca já está no trilho lateral. */
 	@media (min-width: 900px) {

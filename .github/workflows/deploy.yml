@@ -21,29 +21,36 @@ jobs:
     env:
       # O site fica em https://<usuario>.github.io/<repositorio>/
       BASE_PATH: /${{ github.event.repository.name }}
+      # Supabase: valores públicos por natureza (a chave publishable vai para o navegador
+      # de qualquer forma; o RLS protege os dados). Defina em Settings › Secrets and
+      # variables › Actions › Variables; sem eles o app funciona só no aparelho.
+      PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       - name: Verificação de tipos
-        run: npm run check
+        run: pnpm check
 
       - name: Testes unitários
-        run: npm run test:unit -- --run
+        run: pnpm test:unit --run
 
       - name: Testes ponta a ponta
         run: |
-          npx playwright install --with-deps chromium
-          npm run test:e2e
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
 
       - name: Build
-        run: npm run build
+        run: pnpm build
 
       - uses: actions/upload-pages-artifact@v3
         with:

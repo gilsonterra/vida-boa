@@ -25,19 +25,19 @@ Finanças pessoais em um PWA instalável. Funciona offline e guarda os dados no 
 ## Comandos
 
 ```bash
-npm install
-npm run dev            # http://localhost:5173
-npm run check          # tipos
-npm run test:unit      # Vitest (modo watch)
-npm run test:e2e       # Playwright: build + preview em /vida-boa/
-npm run build          # gera build/
+pnpm install
+pnpm dev               # http://localhost:5173
+pnpm check             # tipos
+pnpm test:unit         # Vitest (modo watch)
+pnpm test:e2e          # Playwright: build + preview em /vida-boa/
+pnpm build             # gera build/
 ```
 
 Para ver o app cheio sem importar nada: **Ajustes › Carregar dados de demonstração** (aparece enquanto não há contas).
 
 ## Publicação no GitHub Pages
 
-O workflow `.github/workflows/deploy.yml` roda a cada push na `main`. Ele verifica os tipos, roda os testes e faz o build com `BASE_PATH=/<nome-do-repo>`.
+O workflow `.github/workflows/deploy.yml` roda a cada push na `main`. Ele instala com pnpm, verifica os tipos, roda os testes e faz o build com `BASE_PATH=/<nome-do-repo>` e as variáveis do Supabase.
 
 Antes do primeiro deploy, configure uma vez no GitHub: **Settings › Pages › Build and deployment › Source: GitHub Actions**.
 
@@ -52,7 +52,8 @@ src/lib/
   import/        plano de importação: deduplicação, categorização e transferências
   data/
     repositories.ts   contrato da camada de dados (o que as telas usam)
-    dexie/            implementação atual (IndexedDB)
+    dexie/            banco local (IndexedDB)
+    sync/             replicação com o Supabase (motor, mapeamento, cliente)
     changes.ts        aviso de "dados mudaram" (reatividade independente do banco)
     live.svelte.ts    consulta reativa para componentes
   stores/        estado da UI (dados em memória, toasts, tema, instalação)
@@ -71,23 +72,27 @@ e2e/             testes Playwright e OFX de exemplo
 6. Pagamento de fatura vira **transferência** entre conta e cartão, pareada quando a outra perna já existe, para o gasto não contar em dobro.
 7. No fim, o saldo calculado é comparado com o `LEDGERBAL` do banco, e o app oferece ajustar o saldo inicial.
 
-## Migração para o Supabase
+## Nuvem (Supabase)
 
-O modelo já nasceu pronto para sincronizar:
+O app é **local-first**: lê e grava sempre no IndexedDB, então abre na hora e funciona sem internet. Com uma conta (e-mail e senha), o banco local é replicado no Supabase e fica igual em todos os aparelhos.
 
-- **UUIDs gerados no cliente**: o mesmo `id` vale localmente e no Postgres.
-- **Dinheiro em centavos inteiros** (`bigint` no banco), datas como `date`, timestamps `timestamptz`.
-- **Exclusão lógica** (`deletedAt`), para a sincronização saber o que foi apagado.
-- `createdAt`/`updatedAt` em tudo, para resolver conflitos por "última escrita vence".
+**Como sincroniza** (`src/lib/data/sync/engine.ts`):
 
-Passos previstos:
+- _Subir_: o que mudou no aparelho desde a última subida (`updatedAt`).
+- _Baixar_: o que chegou na nuvem desde o último cursor (`server_updated_at`, relógio do servidor).
+- _Conflito_: vence a edição mais recente. O gatilho `vb_before_write` aplica a mesma regra no Postgres.
+- _Exclusão_: é lógica (`deleted_at`), então sincroniza como qualquer alteração.
+- _Quando_: ao entrar, ao abrir o app, ao voltar a ficar online, 1,5 s depois de cada alteração, a cada 5 min e quando o Realtime avisa que outro aparelho mudou algo.
+- _Primeira entrada_: os dados do aparelho sobem para a conta. Um aparelho sem dados adota os da conta (sem duplicar as categorias iniciais). Um aparelho com dados de **outra** conta só entra depois de confirmar que eles serão apagados.
 
-1. Criar as tabelas espelhando `src/lib/domain/types.ts`, com `user_id` e políticas RLS `user_id = auth.uid()`.
-2. Implementar `createSupabaseStore()` cumprindo o contrato `DataStore` de `src/lib/data/repositories.ts`, e trocar a linha em `src/lib/data/index.ts`.
-3. Ligar o Supabase Realtime ao `notifyChange()` de `src/lib/data/changes.ts`. As telas já se atualizam por ele.
-4. Migrar os dados locais usando o próprio backup: `exportBackup()` → inserir no Supabase.
+**Configuração (uma vez):**
 
-Se quiser manter o funcionamento offline depois da migração, o caminho é deixar o Dexie como cache local e sincronizar por `updatedAt`. O contrato não muda.
+1. No Supabase, abra o **SQL Editor** e rode `supabase/migrations/20261007000000_vida_boa.sql`. Ele cria as tabelas, o RLS (cada usuário só vê as próprias linhas), o gatilho de conflito e o Realtime. Pode ser rodado de novo sem problema.
+2. Em **Authentication › URL Configuration**, defina o _Site URL_ como `https://<usuario>.github.io/vida-boa/` (é para onde vai o link de confirmação de e-mail).
+3. Localmente, copie `.env.example` para `.env` e preencha URL e chave _publishable_.
+4. No GitHub, em **Settings › Secrets and variables › Actions › Variables**, crie `PUBLIC_SUPABASE_URL` e `PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+
+A chave _publishable_ é feita para ficar no navegador; quem protege os dados é o RLS. Sem essas variáveis, o app funciona normalmente, só no aparelho.
 
 ## Marca
 

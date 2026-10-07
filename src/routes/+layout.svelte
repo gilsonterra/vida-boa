@@ -8,6 +8,7 @@
 	import { applyUpdate, registerServiceWorker, requestPersistentStorage } from '#lib/pwa.ts';
 	import { provideAppData } from '#lib/stores/data.svelte.ts';
 	import { initInstall } from '#lib/stores/install.svelte.ts';
+	import { initCloud } from '#lib/stores/sync.svelte.ts';
 	import { initTheme } from '#lib/stores/theme.svelte.ts';
 	import { openEditor, ui } from '#lib/stores/ui.svelte.ts';
 	import Navigation from '#lib/ui/Navigation.svelte';
@@ -24,7 +25,10 @@
 		initInstall();
 		registerServiceWorker();
 		requestPersistentStorage();
-		store.ensureSeed().then(() => store.recurring.materialize(today()));
+		store
+			.ensureSeed()
+			.then(() => store.recurring.materialize(today()))
+			.then(() => initCloud());
 
 		// Atalho do ícone instalado: "Novo lançamento".
 		if (page.url.searchParams.has('novo')) {

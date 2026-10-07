@@ -10,6 +10,7 @@
 	import { setTheme, theme, type ThemePref } from '#lib/stores/theme.svelte.ts';
 	import { confirmAction, toast } from '#lib/stores/ui.svelte.ts';
 	import Button from '#lib/ui/Button.svelte';
+	import CloudAccount from '#lib/ui/CloudAccount.svelte';
 	import PageHeader from '#lib/ui/PageHeader.svelte';
 	import PalettePicker from '#lib/ui/PalettePicker.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
@@ -91,6 +92,8 @@
 <PageHeader title="Ajustes" />
 
 <div class="page">
+	<CloudAccount />
+
 	<section>
 		<h2>Cadastros</h2>
 		<ul>
