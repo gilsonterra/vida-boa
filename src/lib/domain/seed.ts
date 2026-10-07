@@ -218,6 +218,10 @@ const BASE_RULES: Array<{ pattern: string; matchType: MatchType; category: strin
  */
 const EXTRA_RULES: Record<string, string[]> = {
 	Restaurantes: [
+		'GRELHADO',
+		'CANTINHO',
+		'HABIB',
+		'CHOCOLATE',
 		'CERVEJARIA',
 		'CACHACARIA',
 		'CASEIRO',
@@ -266,6 +270,7 @@ const EXTRA_RULES: Record<string, string[]> = {
 		'SPOLETO'
 	],
 	Mercado: [
+		'CARNES',
 		'ATACAREJ',
 		'BEBID',
 		'ALIMENTOS',
@@ -287,6 +292,9 @@ const EXTRA_RULES: Record<string, string[]> = {
 		'NATURAIS'
 	],
 	Compras: [
+		'RELOJOARIA',
+		'BORDADOS',
+		'PRESENTES',
 		'AMAZON',
 		'MERCADOLIVRE',
 		'MERCADO LIVRE',
@@ -303,7 +311,15 @@ const EXTRA_RULES: Record<string, string[]> = {
 		'SHOPPING'
 	],
 	Delivery: ['DELIVERY'],
-	Assinaturas: ['MELIMAIS', 'AMAZON DIGITAL', 'AMAZON PRIME', 'PRIMEVIDEO', 'KINDLE', 'ICLOUD'],
+	Assinaturas: [
+		'SOFTWARE',
+		'MELIMAIS',
+		'AMAZON DIGITAL',
+		'AMAZON PRIME',
+		'PRIMEVIDEO',
+		'KINDLE',
+		'ICLOUD'
+	],
 	Vestuário: [
 		'RENNER',
 		'RIACHUELO',
@@ -320,6 +336,9 @@ const EXTRA_RULES: Record<string, string[]> = {
 	],
 	Filhos: ['KIDS', 'RI HAPPY', 'BRINQUEDOS', 'TOYS', 'PBKIDS'],
 	'Casa & Manutenção': [
+		'PAISAGISMO',
+		'ASSISTENCIA TECNICA',
+		'KACTUS',
 		'MATERIA',
 		'MATERIAIS',
 		'MAT CONSTR',
@@ -333,6 +352,7 @@ const EXTRA_RULES: Record<string, string[]> = {
 		'TINTAS'
 	],
 	Transporte: [
+		'PARKING',
 		'CONCEBRA',
 		'PEDAGIO',
 		'ECORODOVIAS',
@@ -385,6 +405,9 @@ const EXTRA_RULES: Record<string, string[]> = {
 	Saúde: ['PRONTO SOCORRO', 'PRONTOSOCORRO', 'ODONTO', 'OTICA', 'EXAMES'],
 	Pets: ['PET SHOP', 'PETSHOP', 'PETZ', 'COBASI', 'VETERINAR'],
 	'Lazer & Cultura': [
+		'LIVRARIA',
+		'LEITURA',
+		'PAGINAS',
 		'FESTA',
 		'RECREATIVAS',
 		'ZIGPAY',

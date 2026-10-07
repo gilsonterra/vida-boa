@@ -2,7 +2,9 @@
 	import { resolve } from '$app/paths';
 	import { Plus } from '@lucide/svelte';
 	import { store } from '#lib/data/index.ts';
+	import { today } from '#lib/domain/dates.ts';
 	import { findMatchingRule } from '#lib/domain/rules.ts';
+	import { buildRulesFile, parseRulesFile, planRulesImport } from '#lib/domain/rules-file.ts';
 	import type { CategorizationRule, CategoryKind, ID, MatchType } from '#lib/domain/types.ts';
 	import { useAppData } from '#lib/stores/data.svelte.ts';
 	import { confirmAction, toast } from '#lib/stores/ui.svelte.ts';
@@ -81,6 +83,45 @@
 		open = false;
 	}
 
+	async function importRules(file: File) {
+		let parsed;
+		try {
+			parsed = parseRulesFile(JSON.parse(await file.text()));
+		} catch (err) {
+			return toast(
+				err instanceof SyntaxError ? 'O arquivo não é um JSON válido.' : (err as Error).message
+			);
+		}
+		const plan = planRulesImport(parsed, data.rules, data.categories);
+		for (const r of plan.create) {
+			await store.rules.create({ ...r, accountId: null, priority: 10, isSystem: false });
+		}
+		const parts = [`${plan.create.length} regra(s) importada(s)`];
+		if (plan.duplicates) parts.push(`${plan.duplicates} já existiam`);
+		if (plan.unknownCategories.length)
+			parts.push(`categorias não encontradas: ${plan.unknownCategories.join(', ')}`);
+		toast(
+			parts.join('; '),
+			plan.create.length && uncategorized.length
+				? { label: 'Aplicar agora', run: applyNow }
+				: undefined
+		);
+	}
+
+	function exportRules() {
+		const file = buildRulesFile(data.rules, data.categories);
+		if (!file.rules.length) return toast('Você ainda não tem regras próprias para exportar.');
+		const url = URL.createObjectURL(
+			new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })
+		);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `vida-boa-regras-${today()}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+		toast(`${file.rules.length} regra(s) exportada(s)`);
+	}
+
 	/** Passa as regras nos lançamentos que ainda estão sem categoria. */
 	async function applyNow() {
 		const updates = new Map<ID, ID[]>();
@@ -156,6 +197,28 @@
 			aqui, pelo botão +.
 		</p>
 	{/if}
+
+	<h2>Suas regras em arquivo</h2>
+	<p class="muted">
+		Leve suas regras para outro aparelho ou importe uma lista pronta (JSON). Regras repetidas são
+		ignoradas.
+	</p>
+	<div class="file-actions">
+		<label class="file-btn">
+			Importar regras
+			<input
+				type="file"
+				accept="application/json,.json"
+				class="sr-only"
+				onchange={(e) => {
+					const f = e.currentTarget.files?.[0];
+					if (f) importRules(f);
+					e.currentTarget.value = '';
+				}}
+			/>
+		</label>
+		<Button variant="secondary" onclick={exportRules}>Exportar minhas regras</Button>
+	</div>
 
 	<h2>Regras prontas</h2>
 	<input
@@ -254,6 +317,26 @@
 	}
 	.muted {
 		color: var(--ink-2);
+	}
+	.file-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		margin-top: 12px;
+	}
+	.file-btn {
+		display: inline-flex;
+		align-items: center;
+		height: 44px;
+		padding: 0 20px;
+		border-radius: 999px;
+		box-shadow: inset 0 0 0 1px var(--rule-strong);
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.file-btn:focus-within {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
 	}
 	.filter {
 		margin: 6px 0 4px;

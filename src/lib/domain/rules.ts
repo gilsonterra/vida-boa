@@ -12,11 +12,13 @@ export function ruleMatches(rule: CategorizationRule, description: string, accou
 			return text === pattern;
 		case 'starts_with':
 			return text.startsWith(pattern);
-		case 'contains':
-			// Casa por palavra inteira para "99" não casar com "R$ 1990".
-			return (
-				` ${text} `.includes(` ${pattern} `) || (pattern.length >= 4 && text.includes(pattern))
-			);
+		case 'contains': {
+			// Casa por palavra inteira para "99" não casar com "R$ 1990". O "*" dos prefixos de
+			// maquininha ("ZIG *BAR", "MP *LOJA") conta como separador de palavras.
+			const words = ` ${text.replace(/\*/g, ' ')} `;
+			const bare = pattern.replace(/\*/g, ' ').trim();
+			return words.includes(` ${bare} `) || (pattern.length >= 4 && text.includes(pattern));
+		}
 	}
 }
 

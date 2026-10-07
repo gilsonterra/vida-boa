@@ -40,7 +40,10 @@ describe('regras iniciais', () => {
 		['Pagamento de boleto efetuado - GCI CAIXA - HABITACAO', 'Financiamentos'],
 		['Pagamento de boleto efetuado - DEPARTAMENTO ESTADUAL DE TRANSITO', 'Impostos & Taxas'],
 		['Transferência enviada pelo Pix - EQUATORIAL GOIAS DISTRIBUIDORA DE ENERGIA S A', 'Moradia'],
-		['Desconto Antecipação Lojas Renner', 'Reembolsos']
+		['Desconto Antecipação Lojas Renner', 'Reembolsos'],
+		['Zig *Bar das Ondas', 'Restaurantes'],
+		['Companhia do Grelhado', 'Restaurantes'],
+		['L Moura Carnes', 'Mercado']
 	])('%s → %s', (description, category) => {
 		expect(categorize(description)).toBe(category);
 	});
