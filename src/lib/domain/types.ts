@@ -113,5 +113,45 @@ export interface ImportBatch extends Entity {
 	periodEnd: ISODate | null;
 }
 
+export type LoanKind = 'home' | 'vehicle' | 'personal' | 'other';
+/** `contract`: o app calcula a tabela a partir do contrato; `simple`: parcela fixa × quantidade. */
+export type LoanMode = 'contract' | 'simple';
+/** Price: parcela fixa. SAC: amortização fixa (a parcela cai a cada mês). */
+export type AmortizationSystem = 'price' | 'sac';
+
+export interface Loan extends Entity {
+	name: string;
+	kind: LoanKind;
+	mode: LoanMode;
+	/** Só no modo `contract`; o modo simples funciona como Price sem juros. */
+	system: AmortizationSystem;
+	/** Valor financiado (modo `contract`). */
+	principalCents: number;
+	/** Taxa em porcentagem (ex.: 0.99), no período de `ratePeriod`. Zero no modo simples. */
+	ratePercent: number;
+	ratePeriod: 'month' | 'year';
+	/** Valor da parcela (modo `simple`). */
+	installmentCents: number;
+	/** Quantidade de parcelas mensais do contrato. */
+	termMonths: number;
+	firstDueDate: ISODate;
+	/** Parcelas pagas antes de cadastrar no app: contam como pagas, sem gerar lançamento. */
+	paidBefore: number;
+	/** Conta de onde saem as parcelas. */
+	accountId: ID;
+	categoryId: ID | null;
+}
+
+/** O que uma amortização extra reduz: o número de parcelas ou o valor de cada uma. */
+export type PrepaymentEffect = 'term' | 'installment';
+
+export interface LoanPrepayment extends Entity {
+	loanId: ID;
+	date: ISODate;
+	amountCents: number;
+	effect: PrepaymentEffect;
+	accountId: ID;
+}
+
 /** Campos que o chamador informa ao criar uma entidade. */
 export type NewEntity<T extends Entity> = Omit<T, keyof Entity> & { id?: ID };

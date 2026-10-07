@@ -2,7 +2,7 @@ import { monthKey, monthRange, monthsBetween, shiftMonth, type MonthKey } from '
 import type { Account, AccountKind, AccountType, ID, Transaction } from './types';
 
 /**
- * Agregações puras usadas por Início e Relatórios.
+ * Agregações puras usadas pelo Início, pelo Extrato e pelas contas.
  * Transferências nunca contam como receita ou despesa: só movem dinheiro entre contas.
  * Estornos (despesa com valor positivo) abatem a despesa da categoria.
  */
@@ -48,36 +48,6 @@ export function summarize(txs: Transaction[]): MonthSummary {
 export function inMonth(txs: Transaction[], key: MonthKey): Transaction[] {
 	const { start, end } = monthRange(key);
 	return txs.filter((t) => t.date >= start && t.date <= end);
-}
-
-export interface CategoryTotal {
-	categoryId: ID | null;
-	/** Positivo para o "lado" pedido (gasto ou receita). */
-	totalCents: number;
-	count: number;
-}
-
-export function totalsByCategory(txs: Transaction[], kind: 'expense' | 'income'): CategoryTotal[] {
-	const map = new Map<ID | null, CategoryTotal>();
-	for (const t of txs) {
-		if (t.deletedAt || t.kind !== kind) continue;
-		const entry = map.get(t.categoryId) ?? { categoryId: t.categoryId, totalCents: 0, count: 0 };
-		entry.totalCents += kind === 'expense' ? -t.amountCents : t.amountCents;
-		entry.count += 1;
-		map.set(t.categoryId, entry);
-	}
-	return [...map.values()]
-		.filter((e) => e.totalCents > 0)
-		.sort((a, b) => b.totalCents - a.totalCents);
-}
-
-export function monthlySeries(
-	txs: Transaction[],
-	months: MonthKey[]
-): Array<MonthSummary & { month: MonthKey }> {
-	const buckets = new Map<MonthKey, Transaction[]>(months.map((m) => [m, []]));
-	for (const t of txs) buckets.get(monthKey(t.date))?.push(t);
-	return months.map((m) => ({ month: m, ...summarize(buckets.get(m)!) }));
 }
 
 /** Patrimônio líquido no último dia de cada mês. */

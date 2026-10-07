@@ -1,6 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import { store } from '../data';
 import { live } from '../data/live.svelte';
+import { buildSchedule, outstandingAt, type LoanSchedule } from '../domain/loans';
 import { accountBalances } from '../domain/reports';
 import type {
 	Account,
@@ -10,6 +11,9 @@ import type {
 	Category,
 	ID,
 	ImportBatch,
+	ISODate,
+	Loan,
+	LoanPrepayment,
 	RecurringRule,
 	Transaction
 } from '../domain/types';
@@ -27,6 +31,8 @@ export class AppData {
 	#recurring = live(() => store.recurring.list(), [] as RecurringRule[]);
 	#rules = live(() => store.rules.list(), [] as CategorizationRule[]);
 	#imports = live(() => store.imports.list(), [] as ImportBatch[]);
+	#loans = live(() => store.loans.list(), [] as Loan[]);
+	#prepayments = live(() => store.loanPrepayments.list(), [] as LoanPrepayment[]);
 
 	get accounts() {
 		return this.#accounts.current;
@@ -53,6 +59,24 @@ export class AppData {
 	}
 	get imports() {
 		return this.#imports.current;
+	}
+	get loans() {
+		return this.#loans.current;
+	}
+	get prepayments() {
+		return this.#prepayments.current;
+	}
+
+	/** Tabela de cada financiamento, recalculada quando o contrato ou as amortizações mudam. */
+	schedules = $derived(
+		new Map<ID, LoanSchedule>(this.loans.map((l) => [l.id, buildSchedule(l, this.prepayments)]))
+	);
+
+	/** Soma dos saldos devedores previstos na data (entra negativa no patrimônio). */
+	debtAt(date: ISODate): number {
+		let total = 0;
+		for (const s of this.schedules.values()) total += outstandingAt(s, date);
+		return total;
 	}
 
 	ready = $derived(

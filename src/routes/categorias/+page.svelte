@@ -74,7 +74,7 @@
 	}
 </script>
 
-<PageHeader title="Categorias" back={{ href: resolve('/ajustes'), label: 'Ajustes' }}>
+<PageHeader title="Categorias" back={{ href: resolve('/cadastros'), label: 'Cadastros' }}>
 	{#snippet actions()}
 		<IconButton tone="hi" label="Nova categoria" onclick={() => edit(null)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton

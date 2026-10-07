@@ -5,6 +5,8 @@ import type {
 	CategorizationRule,
 	Category,
 	ImportBatch,
+	Loan,
+	LoanPrepayment,
 	RecurringRule,
 	Transaction
 } from '../../domain/types';
@@ -22,6 +24,8 @@ export class VidaBoaDB extends Dexie {
 	transactions!: EntityTable<Transaction, 'id'>;
 	recurring!: EntityTable<RecurringRule, 'id'>;
 	importBatches!: EntityTable<ImportBatch, 'id'>;
+	loans!: EntityTable<Loan, 'id'>;
+	loanPrepayments!: EntityTable<LoanPrepayment, 'id'>;
 	meta!: EntityTable<MetaRow, 'key'>;
 
 	constructor(name = 'vida-boa') {
@@ -38,6 +42,7 @@ export class VidaBoaDB extends Dexie {
 			importBatches: 'id, accountId',
 			meta: 'key'
 		});
+		this.version(2).stores({ loans: 'id', loanPrepayments: 'id, loanId' });
 	}
 }
 
@@ -48,5 +53,7 @@ export const TABLES = [
 	'rules',
 	'transactions',
 	'recurring',
-	'importBatches'
+	'importBatches',
+	'loans',
+	'loanPrepayments'
 ] as const;

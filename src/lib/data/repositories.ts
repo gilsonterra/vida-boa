@@ -6,6 +6,8 @@ import type {
 	Entity,
 	ID,
 	ImportBatch,
+	Loan,
+	LoanPrepayment,
 	ISODate,
 	NewEntity,
 	RecurringRule,
@@ -76,6 +78,19 @@ export interface RecurringRepository extends Repository<RecurringRule> {
 	materialize(upTo: ISODate): Promise<number>;
 }
 
+export interface LoanRepository extends Repository<Loan> {
+	/** Lança as parcelas vencidas até `upTo` (exceto as pagas antes do cadastro). */
+	materialize(upTo: ISODate): Promise<number>;
+}
+
+export interface LoanPrepaymentRepository {
+	list(): Promise<LoanPrepayment[]>;
+	/** Registra a amortização e lança a saída correspondente na conta. */
+	create(data: NewEntity<LoanPrepayment>): Promise<LoanPrepayment>;
+	/** Exclui a amortização e o lançamento dela. */
+	remove(id: ID): Promise<void>;
+}
+
 export interface Backup {
 	app: 'vida-boa';
 	version: number;
@@ -91,6 +106,8 @@ export interface DataStore {
 	transactions: TransactionRepository;
 	recurring: RecurringRepository;
 	imports: ImportRepository;
+	loans: LoanRepository;
+	loanPrepayments: LoanPrepaymentRepository;
 	/** Cria tipos de conta, categorias e regras iniciais no primeiro uso. */
 	ensureSeed(): Promise<void>;
 	exportBackup(): Promise<Backup>;

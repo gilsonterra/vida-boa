@@ -148,7 +148,7 @@
 
 <PageHeader
 	title="Regras"
-	back={{ href: resolve('/ajustes'), label: 'Ajustes' }}
+	back={{ href: resolve('/cadastros'), label: 'Cadastros' }}
 	subtitle="Quando a descrição de um lançamento casa com uma regra, ele já chega categorizado na importação."
 >
 	{#snippet actions()}

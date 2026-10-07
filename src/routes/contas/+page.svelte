@@ -16,7 +16,7 @@
 	const archived = $derived(data.accounts.filter((a) => a.archived));
 </script>
 
-<PageHeader title="Contas e cartões" back={{ href: resolve('/ajustes'), label: 'Ajustes' }}>
+<PageHeader title="Contas e cartões" back={{ href: resolve('/cadastros'), label: 'Cadastros' }}>
 	{#snippet actions()}
 		<IconButton tone="hi" label="Nova conta" onclick={() => (editorOpen = true)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton

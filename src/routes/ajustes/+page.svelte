@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ChevronRight } from '@lucide/svelte';
 	import { store } from '#lib/data/index.ts';
 	import { loadDemoData } from '#lib/data/demo.ts';
 	import type { Backup } from '#lib/data/repositories.ts';
@@ -17,19 +16,6 @@
 
 	const data = useAppData();
 	let busy = $state(false);
-
-	const links = $derived([
-		{ href: resolve('/contas'), label: 'Contas e cartões', count: data.activeAccounts.length },
-		{ href: resolve('/tipos-de-conta'), label: 'Tipos de conta', count: data.types.length },
-		{ href: resolve('/categorias'), label: 'Categorias', count: data.categories.length },
-		{ href: resolve('/regras'), label: 'Regras de categorização', count: data.rules.length },
-		{
-			href: resolve('/recorrentes'),
-			label: 'Lançamentos recorrentes',
-			count: data.recurring.length
-		},
-		{ href: resolve('/importacoes'), label: 'Histórico de importações', count: data.imports.length }
-	]);
 
 	async function exportBackup() {
 		const backup = await store.exportBackup();
@@ -93,21 +79,6 @@
 
 <div class="page">
 	<CloudAccount />
-
-	<section>
-		<h2>Cadastros</h2>
-		<ul>
-			{#each links as l (l.href)}
-				<li>
-					<a class="row link" href={l.href}>
-						<span class="grow">{l.label}</span>
-						<span class="count tabular">{l.count}</span>
-						<ChevronRight size={16} strokeWidth={1.5} />
-					</a>
-				</li>
-			{/each}
-		</ul>
-	</section>
 
 	<section>
 		<h2>Aparência</h2>
@@ -190,20 +161,6 @@
 	h2 {
 		font-size: 17px;
 		margin-bottom: 12px;
-	}
-	.link {
-		min-height: 54px;
-		color: var(--ink);
-	}
-	.link :global(svg) {
-		color: var(--ink-3);
-	}
-	.grow {
-		flex: 1;
-	}
-	.count {
-		color: var(--ink-3);
-		font-size: 14px;
 	}
 	h3 {
 		margin: 18px 0 10px;

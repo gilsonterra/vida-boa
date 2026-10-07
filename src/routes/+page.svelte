@@ -12,7 +12,7 @@
 		Plus,
 		TriangleAlert
 	} from '@lucide/svelte';
-	import { addDays, formatDayShort, monthKey, today } from '#lib/domain/dates.ts';
+	import { addDays, formatDayShort, monthKey, monthRange, today } from '#lib/domain/dates.ts';
 	import { upcomingDates } from '#lib/domain/recurrence.ts';
 	import {
 		chartMonths,
@@ -51,9 +51,17 @@
 		return data.transactions.filter((t) => ids.has(t.accountId));
 	});
 
+	// Saldo devedor dos financiamentos entra como dívida.
 	const netWorth = $derived(
-		visibleAccounts.reduce((s, a) => s + (data.balances.get(a.id) ?? 0), 0)
+		visibleAccounts.reduce((s, a) => s + (data.balances.get(a.id) ?? 0), 0) - data.debtAt(now)
 	);
+	/** Patrimônio no fim de cada mês, descontando a dívida da época (o mês atual vai até hoje). */
+	function withDebt(points: Array<{ month: string; totalCents: number }>) {
+		return points.map((p) => {
+			const end = monthRange(p.month).end;
+			return { ...p, totalCents: p.totalCents - data.debtAt(end < now ? end : now) };
+		});
+	}
 	/** Período do gráfico, em meses ('all' = desde o primeiro lançamento). */
 	type Range = '3' | '6' | '12' | 'all';
 	let range = $state<Range>('6');
@@ -68,10 +76,10 @@
 			? chartMonths(visibleTx, thisMonth, 600, 2)
 			: chartMonths(visibleTx, thisMonth, Number(range), Number(range))
 	);
-	const series = $derived(netWorthSeries(visibleAccounts, visibleTx, months));
+	const series = $derived(withDebt(netWorthSeries(visibleAccounts, visibleTx, months)));
 	/** Variação do mês atual, independente do período escolhido no gráfico. */
 	const lastTwo = $derived(
-		netWorthSeries(visibleAccounts, visibleTx, chartMonths(visibleTx, thisMonth, 2, 2))
+		withDebt(netWorthSeries(visibleAccounts, visibleTx, chartMonths(visibleTx, thisMonth, 2, 2)))
 	);
 	const monthDelta = $derived(
 		lastTwo.length > 1 ? lastTwo[1].totalCents - lastTwo[0].totalCents : 0
@@ -190,10 +198,10 @@
 					</button>
 				</section>
 				<section class="month">
-					<a href={resolve('/relatorios')} class="cell">
+					<a href={resolve('/extrato')} class="cell">
 						<FlowFigure kind="in" cents={month.incomeCents} label="Entradas no mês" />
 					</a>
-					<a href={resolve('/relatorios')} class="cell">
+					<a href={resolve('/extrato')} class="cell">
 						<FlowFigure kind="out" cents={month.expenseCents} label="Saídas no mês" />
 					</a>
 				</section>

@@ -3,6 +3,7 @@ import type {
 	Account,
 	CategorizationRule,
 	Entity,
+	Loan,
 	RecurringRule,
 	Transaction
 } from '../../domain/types';
@@ -131,7 +132,8 @@ export async function mergeSeedDuplicates(db: VidaBoaDB): Promise<number> {
 		db.categories,
 		db.rules,
 		db.transactions,
-		db.recurring
+		db.recurring,
+		db.loans
 	];
 	const merged = await db.transaction('rw', tables, async () => {
 		const ts = new Date().toISOString();
@@ -180,6 +182,7 @@ export async function mergeSeedDuplicates(db: VidaBoaDB): Promise<number> {
 		// categoryId não é indexado nos lançamentos nem nos recorrentes: percorre a tabela.
 		await repointAll(db.transactions as Table<Transaction, string>, 'categoryId', catKeep);
 		await repointAll(db.recurring as Table<RecurringRule, string>, 'categoryId', catKeep);
+		await repointAll(db.loans as Table<Loan, string>, 'categoryId', catKeep);
 		await retire(db.categories as Table<Entity, string>, catKeep.keys());
 
 		// Depois de apontar para a mesma categoria, as regras iniciais repetidas ficam iguais.

@@ -3,8 +3,8 @@
 	import { page } from '$app/state';
 	import {
 		ArrowLeftRight,
-		ChartColumn,
 		FileUp,
+		FolderOpen,
 		Gem,
 		House,
 		List,
@@ -15,19 +15,43 @@
 	import Sheet from './Sheet.svelte';
 	import { goto } from '$app/navigation';
 
-	const tabs = [
+	interface Tab {
+		href: string;
+		path: string;
+		label: string;
+		icon: typeof House;
+		also?: string[];
+	}
+
+	const tabs: Tab[] = [
 		{ href: resolve('/'), path: '/', label: 'Início', icon: House },
 		{ href: resolve('/extrato'), path: '/extrato', label: 'Extrato', icon: List },
-		{ href: resolve('/relatorios'), path: '/relatorios', label: 'Relatórios', icon: ChartColumn },
+		{
+			href: resolve('/cadastros'),
+			path: '/cadastros',
+			label: 'Cadastros',
+			icon: FolderOpen,
+			// As telas de cada cadastro também acendem esta aba.
+			also: [
+				'/contas',
+				'/financiamentos',
+				'/tipos-de-conta',
+				'/categorias',
+				'/regras',
+				'/recorrentes',
+				'/importacoes'
+			]
+		},
 		{ href: resolve('/ajustes'), path: '/ajustes', label: 'Ajustes', icon: Settings2 }
 	];
 
 	let actionsOpen = $state(false);
 
 	/** Pela rota, não pelo caminho: no roteador por hash o caminho é sempre o da raiz do app. */
-	function isActive(path: string) {
+	function isActive(t: Tab) {
 		const current = page.route.id ?? '';
-		return path === '/' ? current === '/' : current.startsWith(path);
+		if (t.path === '/') return current === '/';
+		return [t.path, ...(t.also ?? [])].some((p) => current.startsWith(p));
 	}
 
 	function act(fn: () => void) {
@@ -36,14 +60,14 @@
 	}
 </script>
 
-{#snippet tab(t: (typeof tabs)[number])}
+{#snippet tab(t: Tab)}
 	<a
 		href={t.href}
 		class="tab"
-		class:active={isActive(t.path)}
-		aria-current={isActive(t.path) ? 'page' : undefined}
+		class:active={isActive(t)}
+		aria-current={isActive(t) ? 'page' : undefined}
 	>
-		<t.icon size={20} strokeWidth={isActive(t.path) ? 2 : 1.6} />
+		<t.icon size={20} strokeWidth={isActive(t) ? 2 : 1.6} />
 		<span>{t.label}</span>
 	</a>
 {/snippet}

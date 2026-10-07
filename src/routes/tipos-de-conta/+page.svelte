@@ -55,7 +55,7 @@
 
 <PageHeader
 	title="Tipos de conta"
-	back={{ href: resolve('/ajustes'), label: 'Ajustes' }}
+	back={{ href: resolve('/cadastros'), label: 'Cadastros' }}
 	subtitle="A natureza do tipo define como o app trata a conta: cartões guardam dívida, investimentos aparecem separados."
 >
 	{#snippet actions()}

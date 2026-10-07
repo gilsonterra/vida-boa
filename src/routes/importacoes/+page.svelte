@@ -25,7 +25,7 @@
 	}
 </script>
 
-<PageHeader title="Importações" back={{ href: resolve('/ajustes'), label: 'Ajustes' }} />
+<PageHeader title="Importações" back={{ href: resolve('/cadastros'), label: 'Cadastros' }} />
 
 <div class="page">
 	{#if data.imports.length}

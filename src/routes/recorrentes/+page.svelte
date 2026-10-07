@@ -117,7 +117,7 @@
 
 <PageHeader
 	title="Recorrentes"
-	back={{ href: resolve('/ajustes'), label: 'Ajustes' }}
+	back={{ href: resolve('/cadastros'), label: 'Cadastros' }}
 	subtitle="Aluguel, escola, assinaturas: lançados sozinhos na data, sempre que você abrir o app."
 >
 	{#snippet actions()}

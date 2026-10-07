@@ -88,7 +88,7 @@
 		if (txCount > 0) {
 			const ok = await confirmAction({
 				title: 'Arquivar conta?',
-				message: `Esta conta tem ${txCount} lançamentos, que continuarão nos relatórios. Ela sai das listas e dos totais do Início.`,
+				message: `Esta conta tem ${txCount} lançamentos, que continuarão no extrato. Ela sai das listas e dos totais do Início.`,
 				confirmLabel: 'Arquivar'
 			});
 			if (!ok) return;

@@ -7,20 +7,20 @@ Finanças pessoais em um PWA instalável. Funciona offline e guarda os dados no 
 - **Lançamento manual** de despesas, receitas, transferências e estornos.
 - **Recorrentes** (semanal, mensal, anual), lançados sozinhos quando o app é aberto.
 - **Regras de categorização** e aprendizado pelo histórico de cada estabelecimento.
-- **Início e relatórios**: patrimônio, evolução, entradas × saídas, gastos por categoria.
+- **Início**: patrimônio, evolução e entradas × saídas do mês.
 - Seis paletas com nomes de deuses gregos (Deméter, Afrodite, Poseidon, Dionísio, Héstia e Apolo), cada uma em modo claro e escuro.
 - Modo privacidade (oculta valores), backup e restauração em JSON.
 
 ## Stack
 
-| Camada    | Escolha                                                                                       |
-| --------- | --------------------------------------------------------------------------------------------- |
-| UI        | Svelte 5 (runes) + SvelteKit 3, SPA com rotas por hash                                        |
-| Estilo    | Tailwind 4 + CSS com tokens (`src/routes/layout.css`)                                         |
-| Dados     | IndexedDB via Dexie, atrás de interfaces de repositório                                       |
-| Validação | Valibot                                                                                       |
-| PWA       | Service worker nativo do SvelteKit (`src/service-worker.ts`) + `static/manifest.webmanifest`  |
-| Testes    | Vitest (domínio, OFX, importação, banco com `fake-indexeddb`) e Playwright (fluxos completos) |
+| Camada    | Escolha                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------- |
+| UI        | Svelte 5 (runes) + SvelteKit 3, SPA com rotas por hash                                       |
+| Estilo    | Tailwind 4 + CSS com tokens (`src/routes/layout.css`)                                        |
+| Dados     | IndexedDB via Dexie, atrás de interfaces de repositório                                      |
+| Validação | Valibot                                                                                      |
+| PWA       | Service worker nativo do SvelteKit (`src/service-worker.ts`) + `static/manifest.webmanifest` |
+| Testes    | Vitest (domínio, OFX, importação, banco com `fake-indexeddb`)                                |
 
 ## Comandos
 
@@ -29,7 +29,6 @@ pnpm install
 pnpm dev               # http://localhost:5173
 pnpm check             # tipos
 pnpm test:unit         # Vitest (modo watch)
-pnpm test:e2e          # Playwright: build + preview em /vida-boa/
 pnpm build             # gera build/
 ```
 
@@ -47,7 +46,7 @@ O app fica em `https://<usuario>.github.io/vida-boa/`. As rotas usam hash (`/#/e
 
 ```
 src/lib/
-  domain/        regras puras: tipos, dinheiro em centavos, datas, relatórios, regras, recorrência, seed
+  domain/        regras puras: tipos, dinheiro em centavos, datas, agregações, regras, recorrência, seed
   ofx/           parser OFX
   import/        plano de importação: deduplicação, categorização e transferências
   data/
@@ -58,8 +57,7 @@ src/lib/
     live.svelte.ts    consulta reativa para componentes
   stores/        estado da UI (dados em memória, toasts, tema, instalação)
   ui/            design system: Sheet, Amount, editor de lançamento, gráficos SVG...
-src/routes/      telas (Início, Extrato, Relatórios, Ajustes, Importar, cadastros)
-e2e/             testes Playwright e OFX de exemplo
+src/routes/      telas (Início, Extrato, Ajustes, Importar, cadastros)
 ```
 
 ## Como a importação decide

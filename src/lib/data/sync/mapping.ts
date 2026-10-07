@@ -10,6 +10,8 @@ export const SYNC_TABLES = [
 	{ local: 'rules', remote: 'categorization_rules' },
 	{ local: 'recurring', remote: 'recurring_rules' },
 	{ local: 'importBatches', remote: 'import_batches' },
+	{ local: 'loans', remote: 'loans' },
+	{ local: 'loanPrepayments', remote: 'loan_prepayments' },
 	{ local: 'transactions', remote: 'transactions' }
 ] as const;
 
@@ -63,6 +65,23 @@ const COLUMNS: Record<LocalTable, string[]> = {
 		'periodStart',
 		'periodEnd'
 	],
+	loans: [
+		...BASE,
+		'name',
+		'kind',
+		'mode',
+		'system',
+		'principalCents',
+		'ratePercent',
+		'ratePeriod',
+		'installmentCents',
+		'termMonths',
+		'firstDueDate',
+		'paidBefore',
+		'accountId',
+		'categoryId'
+	],
+	loanPrepayments: [...BASE, 'loanId', 'date', 'amountCents', 'effect', 'accountId'],
 	transactions: [
 		...BASE,
 		'accountId',

@@ -42,6 +42,7 @@
 	$effect(() => {
 		if (!signedIn) return;
 		void store.recurring.materialize(today());
+		void store.loans.materialize(today());
 		if (page.url.searchParams.has('novo')) {
 			openEditor({ defaults: { kind: 'expense' } });
 			replaceState(page.url.pathname, {});

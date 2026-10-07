@@ -1,5 +1,6 @@
 import { addDays, daysBetween } from '../../domain/dates';
 import { stableUuid } from '../../domain/ids';
+import { buildSchedule, installmentKey, prepaymentKey } from '../../domain/loans';
 import { dueOccurrences } from '../../domain/recurrence';
 import { SEED_ACCOUNT_TYPES, SEED_CATEGORIES, SEED_RULES, SEED_VERSION } from '../../domain/seed';
 import type {
@@ -9,6 +10,8 @@ import type {
 	Entity,
 	ID,
 	ImportBatch,
+	Loan,
+	LoanPrepayment,
 	NewEntity,
 	RecurringRule,
 	Transaction
@@ -272,6 +275,87 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 				});
 				if (created) notifyChange();
 				return created;
+			}
+		},
+
+		loans: {
+			...crudRepository(db.loans),
+			async materialize(upTo) {
+				let created = 0;
+				await db.transaction('rw', [db.loans, db.loanPrepayments, db.transactions], async () => {
+					const loans = (await db.loans.toArray()).filter(isLive);
+					const prepayments = await db.loanPrepayments.toArray();
+					for (const loan of loans) {
+						const { installments } = buildSchedule(loan, prepayments);
+						const due = installments.filter((i) => i.n > loan.paidBefore && i.dueDate <= upTo);
+						if (!due.length) continue;
+						const rows = due.map((i) =>
+							stamp<Transaction>({
+								id: stableUuid(installmentKey(loan.id, i.n)),
+								accountId: loan.accountId,
+								date: i.dueDate,
+								amountCents: -i.paymentCents,
+								description: `${loan.name} · parcela ${i.n}/${installments.length}`,
+								notes: '',
+								kind: 'expense',
+								categoryId: loan.categoryId,
+								transferId: null,
+								fitId: null,
+								importBatchId: null,
+								recurringId: null
+							})
+						);
+						// Parcela já lançada (mesmo excluída pelo usuário) não volta.
+						const existing = await db.transactions.bulkGet(rows.map((r) => r.id));
+						const fresh = rows.filter((_, i) => !existing[i]);
+						if (fresh.length) await db.transactions.bulkAdd(fresh);
+						created += fresh.length;
+					}
+				});
+				if (created) notifyChange();
+				return created;
+			}
+		},
+
+		loanPrepayments: {
+			async list() {
+				return (await db.loanPrepayments.toArray()).filter(isLive);
+			},
+			async create(data) {
+				const row = stamp<LoanPrepayment>(data);
+				await db.transaction('rw', db.loans, db.loanPrepayments, db.transactions, async () => {
+					const loan = (await db.loans.get(row.loanId)) as Loan | undefined;
+					await db.loanPrepayments.add(row);
+					await db.transactions.add(
+						stamp<Transaction>({
+							id: stableUuid(prepaymentKey(row.id)),
+							accountId: row.accountId,
+							date: row.date,
+							amountCents: -Math.abs(row.amountCents),
+							description: `${loan?.name ?? 'Financiamento'} · amortização extra`,
+							notes: '',
+							kind: 'expense',
+							categoryId: loan?.categoryId ?? null,
+							transferId: null,
+							fitId: null,
+							importBatchId: null,
+							recurringId: null
+						})
+					);
+				});
+				notifyChange();
+				return row;
+			},
+			async remove(id) {
+				const ts = now();
+				await db.transaction('rw', db.loanPrepayments, db.transactions, async () => {
+					await db.loanPrepayments.update(id, { deletedAt: ts, updatedAt: ts });
+					await db.transactions.update(stableUuid(prepaymentKey(id)), {
+						deletedAt: ts,
+						updatedAt: ts
+					});
+				});
+				notifyChange();
 			}
 		},
 
