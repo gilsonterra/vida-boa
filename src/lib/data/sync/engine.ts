@@ -46,7 +46,7 @@ export async function pushChanges(db: VidaBoaDB, remote: RemoteAdapter, userId: 
 			.filter((r) => !since || r.updatedAt > since)
 			.toArray();
 		for (let i = 0; i < rows.length; i += PUSH_BATCH) {
-			const batch = rows.slice(i, i + PUSH_BATCH).map((r) => toRemote({ ...r }, userId));
+			const batch = rows.slice(i, i + PUSH_BATCH).map((r) => toRemote(t.local, { ...r }, userId));
 			await remote.push(t.remote, batch);
 		}
 		pushed += rows.length;
@@ -62,7 +62,7 @@ export async function pullChanges(db: VidaBoaDB, remote: RemoteAdapter, userId: 
 		for (;;) {
 			const page = await remote.pull(t.remote, cursor, PAGE);
 			if (page.length === 0) break;
-			const incoming = page.map(fromRemote);
+			const incoming = page.map((r) => fromRemote(t.local, r));
 			await db.transaction('rw', table(db, t.local), async () => {
 				const tbl = table(db, t.local);
 				const current = await tbl.bulkGet(incoming.map((i) => i.row.id as string));

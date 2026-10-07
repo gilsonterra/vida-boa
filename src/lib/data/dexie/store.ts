@@ -414,8 +414,27 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 		},
 
 		async restoreBackup(backup) {
-			if (backup?.app !== 'vida-boa' || typeof backup.tables !== 'object') {
+			if (backup?.app !== 'vida-boa' || !backup.tables || typeof backup.tables !== 'object') {
 				throw new Error('Arquivo de backup inválido.');
+			}
+			// Cada linha precisa ter a forma mínima de uma entidade; qualquer outra coisa recusa o arquivo.
+			const isEntity = (r: unknown): boolean => {
+				const e = r as Partial<Entity> | null;
+				return (
+					!!e &&
+					typeof e === 'object' &&
+					typeof e.id === 'string' &&
+					/^[0-9a-f-]{36}$/i.test(e.id) &&
+					typeof e.createdAt === 'string' &&
+					typeof e.updatedAt === 'string' &&
+					(e.deletedAt === null || e.deletedAt === undefined || typeof e.deletedAt === 'string')
+				);
+			};
+			for (const name of TABLES) {
+				const rows = backup.tables[name];
+				if (rows !== undefined && (!Array.isArray(rows) || !rows.every(isEntity))) {
+					throw new Error('Arquivo de backup inválido ou corrompido.');
+				}
 			}
 			await db.transaction('rw', [...TABLES.map((t) => db.table(t)), db.meta], async () => {
 				for (const name of TABLES) {

@@ -61,10 +61,12 @@ sw.addEventListener('fetch', (event) => {
 			if (request.mode === 'navigate') {
 				try {
 					const response = await fetch(request);
-					if (response.ok) cache.put(request, response.clone());
+					// Guarda só o index.html (com rotas por hash, toda tela é ele). Não usa o endereço
+					// da navegação como chave: ele pode trazer ?code= de um login por link.
+					if (response.ok && url.pathname === indexPath()) cache.put(indexPath(), response.clone());
 					return response;
 				} catch {
-					const shell = (await cache.match(request)) ?? (await cache.match(indexPath()));
+					const shell = await cache.match(indexPath());
 					if (shell) return shell;
 					throw new Error('offline');
 				}

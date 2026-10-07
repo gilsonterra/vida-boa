@@ -269,6 +269,17 @@ describe('recorrentes', () => {
 });
 
 describe('backup', () => {
+	it('recusa backup com linhas malformadas sem apagar os dados atuais', async () => {
+		const bad = {
+			app: 'vida-boa',
+			version: 1,
+			exportedAt: '',
+			tables: { accounts: [{ nome: 'x' }] }
+		};
+		await expect(store.restoreBackup(bad as never)).rejects.toThrow(/inválido/);
+		expect(await store.accounts.list()).toHaveLength(2);
+	});
+
 	it('exporta e restaura tudo', async () => {
 		await store.transactions.createTransfer({
 			fromAccountId: checking.id,

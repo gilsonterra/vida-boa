@@ -24,7 +24,26 @@ export default defineConfig({
 			// e assim recarregar qualquer tela nunca dá 404.
 			router: { type: 'hash' },
 			// Registro manual, para avisar o usuário quando houver versão nova.
-			serviceWorker: { register: false }
+			serviceWorker: { register: false },
+			// Content Security Policy (vai numa <meta>, já que o GitHub Pages não define cabeçalhos):
+			// só scripts do próprio app, e conexões só com ele e com o Supabase.
+			csp: {
+				mode: 'hash',
+				directives: {
+					'default-src': ['self'],
+					'script-src': ['self'],
+					// Svelte aplica estilos inline (style:...) nos elementos.
+					'style-src': ['self', 'unsafe-inline'],
+					'img-src': ['self', 'data:', 'blob:'],
+					'font-src': ['self'],
+					'connect-src': ['self', 'https://*.supabase.co', 'wss://*.supabase.co'],
+					'manifest-src': ['self'],
+					'worker-src': ['self'],
+					'object-src': ['none'],
+					'base-uri': ['self'],
+					'form-action': ['self']
+				}
+			}
 		})
 	],
 	test: {

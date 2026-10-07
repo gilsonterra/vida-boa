@@ -18,15 +18,7 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/apple-touch-icon.png" />
 		<title>Vida Boa</title>
-		<script>
-			// Aplica tema e paleta antes da primeira pintura, para não piscar.
-			try {
-				const t = localStorage.getItem('vb:theme');
-				if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-				const p = localStorage.getItem('vb:palette');
-				if (p) document.documentElement.dataset.palette = p;
-			} catch {}
-		</script>
+		<script src="%sveltekit.assets%/theme-init.js"></script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

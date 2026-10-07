@@ -159,6 +159,12 @@ describe('parseOfx', () => {
 		]);
 	});
 
+	it('ignora entidades numéricas inválidas em vez de falhar', () => {
+		const text = SGML_BANK.replace('SALARIO EMPRESA X &amp; Y', 'SALARIO &#99999999; &#x41;');
+		const [s] = parseOfx(text).statements;
+		expect(s.transactions[1].description).toBe('SALARIO &#99999999; A');
+	});
+
 	it('rejeita arquivos que não são OFX', () => {
 		expect(() => parseOfx('nome;valor\nx;1')).toThrow(OfxParseError);
 		expect(() => parseOfx('<OFX></OFX>')).toThrow(/Nenhum extrato/);

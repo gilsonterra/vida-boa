@@ -84,7 +84,10 @@ function decodeEntities(s: string): string {
 		if (e[0] === '#') {
 			const code =
 				e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-			return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+			// Fora do intervalo Unicode, String.fromCodePoint lançaria erro: mantém o texto original.
+			return Number.isInteger(code) && code >= 0 && code <= 0x10ffff
+				? String.fromCodePoint(code)
+				: m;
 		}
 		return ENTITIES[e.toLowerCase()] ?? m;
 	});

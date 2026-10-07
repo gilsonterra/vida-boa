@@ -87,12 +87,38 @@ O app é **local-first**: lê e grava sempre no IndexedDB, então abre na hora e
 
 **Configuração (uma vez):**
 
-1. No Supabase, abra o **SQL Editor** e rode `supabase/migrations/20261007000000_vida_boa.sql`. Ele cria as tabelas, o RLS (cada usuário só vê as próprias linhas), o gatilho de conflito e o Realtime. Pode ser rodado de novo sem problema.
+1. No Supabase, abra o **SQL Editor** e rode, em ordem, os arquivos de `supabase/migrations/`: o primeiro cria as tabelas, o RLS (cada usuário só vê as próprias linhas), o gatilho de conflito e o Realtime; o segundo adiciona restrições de domínio e tamanho. Os dois podem ser rodados de novo sem problema.
 2. Em **Authentication › URL Configuration**, defina o _Site URL_ como `https://<usuario>.github.io/vida-boa/` (é para onde vai o link de confirmação de e-mail).
 3. Localmente, copie `.env.example` para `.env` e preencha URL e chave _publishable_.
 4. No GitHub, em **Settings › Secrets and variables › Actions › Variables**, crie `PUBLIC_SUPABASE_URL` e `PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 A chave _publishable_ é feita para ficar no navegador; quem protege os dados é o RLS. Sem essas variáveis, o app funciona normalmente, só no aparelho.
+
+## Segurança
+
+**O que protege os dados**
+
+- **RLS no Postgres**: cada tabela só permite ler e gravar linhas com `user_id = auth.uid()`. O papel anônimo não tem acesso a nada, e não existe permissão de `DELETE` (exclusão é lógica).
+- **Chave composta `(user_id, id)`**: um usuário não sobrescreve linhas de outro, mesmo que gere o mesmo id.
+- **Restrições de domínio e tamanho** (segunda migração): valores fora do esperado e textos enormes são recusados pelo banco.
+- **Sincronização com colunas fixas**: só as colunas conhecidas sobem, e o `user_id` é sempre o da sessão.
+- **Content Security Policy** (numa `<meta>`, já que o GitHub Pages não define cabeçalhos): só scripts do próprio app, sem scripts embutidos, e conexões só com o app e com o Supabase.
+- **Login por link com PKCE**: o código do link só funciona no aparelho que o pediu; ele é removido da barra de endereço e não vai para o cache.
+- **Sem segredos no código**: a chave _publishable_ é pública por natureza; a chave de serviço do Supabase nunca é usada.
+- **Arquivos importados** (OFX, backup, regras) são validados antes de entrar no banco.
+
+**Ajustes recomendados no painel do Supabase** (Authentication):
+
+- _Providers › Email_: manter **Confirm email** ativo e definir **Minimum password length** = 8 (o app já pede 8).
+- _Attack Protection_: ativar a proteção contra senhas vazadas (se o plano permitir) e o CAPTCHA, se houver abuso.
+- _URL Configuration_: _Site URL_ `https://gilsonterra.github.io/vida-boa/` e, em _Redirect URLs_, só os endereços do app (inclua `http://localhost:5173/` se for testar links de e-mail localmente).
+
+**Limites conhecidos**
+
+- Os dados ficam também no aparelho (IndexedDB), sem criptografia própria. Quem tem acesso ao aparelho desbloqueado e às ferramentas do navegador consegue lê-los. Em aparelhos compartilhados, use **Sair e apagar daqui**.
+- Quem já entrou continua abrindo o app sem internet com a sessão guardada, mesmo que a sessão tenha sido revogada no servidor; ao voltar a conexão, a sincronização passa a falhar até entrar de novo.
+- O GitHub Pages não permite o cabeçalho `frame-ancestors`, então a proteção contra o app ser exibido dentro de outro site depende do navegador.
+- Ainda não há "excluir minha conta" no app (a LGPD garante esse direito). Por enquanto, a exclusão é feita em _Authentication › Users_ no Supabase, o que apaga as linhas em cascata.
 
 ## Marca
 
