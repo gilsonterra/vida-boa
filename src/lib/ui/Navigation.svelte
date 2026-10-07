@@ -3,24 +3,32 @@
 	import { page } from '$app/state';
 	import {
 		ArrowLeftRight,
+		ChevronDown,
 		FileUp,
 		FolderOpen,
-		Gem,
 		House,
 		List,
 		Plus,
 		Settings2
 	} from '@lucide/svelte';
 	import { openEditor } from '../stores/ui.svelte';
+	import Logo from './Logo.svelte';
 	import Sheet from './Sheet.svelte';
 	import { goto } from '$app/navigation';
+
+	interface Sub {
+		href: string;
+		path: string;
+		label: string;
+	}
 
 	interface Tab {
 		href: string;
 		path: string;
 		label: string;
 		icon: typeof House;
-		also?: string[];
+		/** Telas dentro da aba: acendem a aba e viram submenu na barra do topo. */
+		subs?: Sub[];
 	}
 
 	const tabs: Tab[] = [
@@ -31,15 +39,14 @@
 			path: '/cadastros',
 			label: 'Cadastros',
 			icon: FolderOpen,
-			// As telas de cada cadastro também acendem esta aba.
-			also: [
-				'/contas',
-				'/financiamentos',
-				'/tipos-de-conta',
-				'/categorias',
-				'/regras',
-				'/recorrentes',
-				'/importacoes'
+			subs: [
+				{ href: resolve('/contas'), path: '/contas', label: 'Contas e cartões' },
+				{ href: resolve('/financiamentos'), path: '/financiamentos', label: 'Financiamentos' },
+				{ href: resolve('/tipos-de-conta'), path: '/tipos-de-conta', label: 'Tipos de conta' },
+				{ href: resolve('/categorias'), path: '/categorias', label: 'Categorias' },
+				{ href: resolve('/regras'), path: '/regras', label: 'Regras de categorização' },
+				{ href: resolve('/recorrentes'), path: '/recorrentes', label: 'Lançamentos recorrentes' },
+				{ href: resolve('/importacoes'), path: '/importacoes', label: 'Histórico de importações' }
 			]
 		},
 		{ href: resolve('/ajustes'), path: '/ajustes', label: 'Ajustes', icon: Settings2 }
@@ -48,10 +55,11 @@
 	let actionsOpen = $state(false);
 
 	/** Pela rota, não pelo caminho: no roteador por hash o caminho é sempre o da raiz do app. */
-	function isActive(t: Tab) {
+	function isActive(t: Tab | Sub) {
 		const current = page.route.id ?? '';
 		if (t.path === '/') return current === '/';
-		return [t.path, ...(t.also ?? [])].some((p) => current.startsWith(p));
+		const subs = 'subs' in t ? (t.subs ?? []) : [];
+		return [t.path, ...subs.map((s) => s.path)].some((p) => current.startsWith(p));
 	}
 
 	function act(fn: () => void) {
@@ -82,15 +90,46 @@
 	</button>
 </div>
 
-<!-- Trilho lateral (telas largas) -->
-<nav class="rail" aria-label="Principal">
-	<a href={resolve('/')} class="brand"><Gem size={24} strokeWidth={1.5} class="gem" />Vida Boa</a>
-	<button type="button" class="rail-add" onclick={() => (actionsOpen = true)}>
+<!-- Barra no topo (telas largas) -->
+<nav class="topbar" aria-label="Principal">
+	<a href={resolve('/')} class="brand"><Logo size={36} />Vida Boa</a>
+	<div class="top-tabs">
+		{#each tabs as t (t.path)}
+			{#if t.subs}
+				<!-- Abre ao passar o mouse ou ao focar com o teclado; clicar na aba abre a tela dela. -->
+				<div class="menu">
+					<a
+						href={t.href}
+						class="tab"
+						class:active={isActive(t)}
+						aria-current={isActive(t) ? 'page' : undefined}
+						aria-haspopup="true"
+					>
+						<t.icon size={20} strokeWidth={isActive(t) ? 2 : 1.6} />
+						<span>{t.label}</span>
+						<ChevronDown size={16} strokeWidth={1.75} class="chev" />
+					</a>
+					<ul class="subs">
+						{#each t.subs as sub (sub.path)}
+							<li>
+								<a
+									href={sub.href}
+									class:active={isActive(sub)}
+									aria-current={isActive(sub) ? 'page' : undefined}
+									onclick={(e) => e.currentTarget.blur()}>{sub.label}</a
+								>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{:else}
+				{@render tab(t)}
+			{/if}
+		{/each}
+	</div>
+	<button type="button" class="top-add" onclick={() => (actionsOpen = true)}>
 		<Plus size={18} strokeWidth={1.75} />Adicionar
 	</button>
-	<div class="rail-tabs">
-		{#each tabs as t (t.path)}{@render tab(t)}{/each}
-	</div>
 </nav>
 
 <Sheet bind:open={actionsOpen} title="Adicionar">
@@ -184,7 +223,7 @@
 	.add:active {
 		transform: scale(0.94);
 	}
-	.rail {
+	.topbar {
 		display: none;
 	}
 	.actions {
@@ -222,22 +261,23 @@
 		flex-shrink: 0;
 	}
 
-	/* Telas largas: painel claro à esquerda, como nas referências. */
+	/* Telas largas: barra clara fixa no topo, com a marca, as abas e o botão de adicionar. */
 	@media (min-width: 900px) {
 		.dock {
 			display: none;
 		}
-		.rail {
+		.topbar {
 			position: fixed;
 			top: 12px;
-			bottom: 12px;
 			left: 12px;
-			width: 232px;
+			right: 12px;
+			z-index: 40;
+			height: 64px;
 			display: flex;
-			flex-direction: column;
-			gap: 28px;
-			padding: 28px 16px;
-			border-radius: 28px;
+			align-items: center;
+			gap: 24px;
+			padding: 0 12px 0 20px;
+			border-radius: 999px;
 			background: var(--surface);
 			box-shadow: var(--shadow-card);
 		}
@@ -249,33 +289,99 @@
 			font-weight: 700;
 			font-size: 24px;
 			color: var(--accent);
-			padding-left: 8px;
+			white-space: nowrap;
 		}
-		.rail-add {
+		.top-tabs {
+			flex: 1;
+			display: flex;
+			justify-content: center;
+			gap: 4px;
+		}
+		.top-tabs .tab {
+			gap: 8px;
+			font-size: 15px;
+			font-weight: 500;
+		}
+		.top-tabs .tab.active {
+			color: var(--on-hi);
+			background: var(--hi);
+			font-weight: 600;
+		}
+		.menu {
+			position: relative;
+		}
+		.menu :global(.chev) {
+			margin-left: -2px;
+			transition: transform 160ms;
+		}
+		.menu:hover :global(.chev),
+		.menu:focus-within :global(.chev) {
+			transform: rotate(180deg);
+		}
+		.subs {
+			position: absolute;
+			top: calc(100% + 10px);
+			left: 50%;
+			min-width: 240px;
+			margin: 0;
+			padding: 6px;
+			list-style: none;
+			border-radius: 20px;
+			background: var(--surface);
+			box-shadow:
+				0 0 0 1px var(--rule),
+				0 18px 40px -16px var(--shade);
+			opacity: 0;
+			visibility: hidden;
+			transform: translate(-50%, -4px);
+			transition:
+				opacity 140ms,
+				transform 140ms,
+				visibility 140ms;
+		}
+		/* Ponte invisível entre a aba e a lista, para o mouse não "cair" no vão. */
+		.subs::before {
+			content: '';
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: -10px;
+			height: 10px;
+		}
+		.menu:hover .subs,
+		.menu:focus-within .subs {
+			opacity: 1;
+			visibility: visible;
+			transform: translate(-50%, 0);
+		}
+		.subs a {
+			display: block;
+			padding: 10px 14px;
+			border-radius: 14px;
+			font-size: 15px;
+			color: var(--ink);
+			white-space: nowrap;
+		}
+		.subs a:hover,
+		.subs a:focus-visible {
+			background: color-mix(in oklab, var(--hi) 55%, transparent);
+		}
+		.subs a.active {
+			background: var(--hi);
+			color: var(--on-hi);
+			font-weight: 600;
+		}
+		.top-add {
 			display: flex;
 			align-items: center;
-			justify-content: center;
 			gap: 8px;
-			height: 46px;
+			height: 44px;
+			padding: 0 20px;
 			border-radius: 999px;
 			background: var(--accent);
 			color: var(--on-accent);
 			font-weight: 600;
-		}
-		.rail-tabs {
-			display: flex;
-			flex-direction: column;
-			gap: 4px;
-		}
-		.rail-tabs .tab {
-			gap: 12px;
-			font-size: 15px;
-			font-weight: 500;
-		}
-		.rail-tabs .tab.active {
-			color: var(--on-hi);
-			background: var(--hi);
-			font-weight: 600;
+			white-space: nowrap;
 		}
 	}
 </style>

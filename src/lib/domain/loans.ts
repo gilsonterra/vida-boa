@@ -1,5 +1,4 @@
 import { addMonths } from './dates';
-import { stableUuid } from './ids';
 import type { ID, ISODate, Loan, LoanPrepayment, PrepaymentEffect } from './types';
 
 /**
@@ -26,7 +25,7 @@ export interface AppliedPrepayment {
 	id: ID;
 	date: ISODate;
 	effect: PrepaymentEffect;
-	/** O que de fato abateu (nunca mais que o saldo). */
+	/** O que de fato abateu (nunca mais que o saldo). Num ajuste de saldo, negativo quando o saldo sobe. */
 	appliedCents: number;
 	/** Número da última parcela vencida antes dela (0 = antes da primeira). */
 	afterInstallment: number;
@@ -84,7 +83,9 @@ export function buildSchedule(loan: Loan, prepayments: LoanPrepayment[]): LoanSc
 		// Amortizações feitas antes deste vencimento abatem o saldo que gera os juros dele.
 		while (next < pending.length && pending[next].date < dueDate && balance > 0) {
 			const p = pending[next++];
-			const cents = Math.min(p.amountCents, balance);
+			// Saldo informado pelo banco: substitui o calculado e mantém a parcela (o prazo se ajusta).
+			const cents =
+				p.effect === 'balance' ? balance - p.amountCents : Math.min(p.amountCents, balance);
 			balance -= cents;
 			applied.push({
 				id: p.id,
@@ -127,7 +128,7 @@ export function buildSchedule(loan: Loan, prepayments: LoanPrepayment[]): LoanSc
 		totalInterestCents,
 		totalPaidCents:
 			installments.reduce((s, i) => s + i.paymentCents, 0) +
-			applied.reduce((s, p) => s + p.appliedCents, 0)
+			applied.reduce((s, p) => s + (p.effect === 'balance' ? 0 : p.appliedCents), 0)
 	};
 }
 
@@ -140,23 +141,15 @@ export function outstandingAt(schedule: LoanSchedule, date: ISODate): number {
 	return Math.max(balance, 0);
 }
 
-/** Ids estáveis: dois aparelhos que lançarem a mesma parcela geram o mesmo registro. */
-export const installmentKey = (loanId: ID, n: number) => `loan:${loanId}:${n}`;
-export const prepaymentKey = (prepaymentId: ID) => `loan-prepayment:${prepaymentId}`;
-
 /**
- * Parcelas pagas: as anteriores ao cadastro e as que têm lançamento vivo no extrato
- * (excluir o lançamento de uma parcela volta ela para "em aberto").
+ * Parcelas pagas: as informadas no cadastro e as que já venceram até `date`.
+ * O financiamento só acompanha a dívida; o pagamento de verdade aparece no extrato da conta
+ * (importado ou lançado à mão), então nada aqui gera lançamento.
  */
-export function paidInstallments(
-	loan: Loan,
-	schedule: LoanSchedule,
-	liveTxIds: Set<ID>
-): Set<number> {
+export function paidInstallments(loan: Loan, schedule: LoanSchedule, date: ISODate): Set<number> {
 	const paid = new Set<number>();
 	for (const i of schedule.installments) {
-		if (i.n <= loan.paidBefore || liveTxIds.has(stableUuid(installmentKey(loan.id, i.n))))
-			paid.add(i.n);
+		if (i.n <= loan.paidBefore || i.dueDate <= date) paid.add(i.n);
 	}
 	return paid;
 }

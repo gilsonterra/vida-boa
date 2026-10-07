@@ -18,13 +18,11 @@
 
 	const ICON = { home: House, vehicle: Car, personal: HandCoins, other: Wallet } as const;
 
-	const liveTxIds = $derived(new Set(data.transactions.map((t) => t.id)));
-
 	const rows = $derived(
 		data.loans
 			.map((loan) => {
 				const schedule = data.schedules.get(loan.id)!;
-				const paid = paidInstallments(loan, schedule, liveTxIds);
+				const paid = paidInstallments(loan, schedule, now);
 				const next = schedule.installments.find((i) => !paid.has(i.n));
 				return {
 					loan,

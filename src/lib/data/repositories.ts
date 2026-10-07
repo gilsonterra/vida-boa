@@ -79,15 +79,16 @@ export interface RecurringRepository extends Repository<RecurringRule> {
 }
 
 export interface LoanRepository extends Repository<Loan> {
-	/** Lança as parcelas vencidas até `upTo` (exceto as pagas antes do cadastro). */
-	materialize(upTo: ISODate): Promise<number>;
+	/**
+	 * Exclui os lançamentos que versões antigas criavam para parcelas e amortizações extras
+	 * (o financiamento não lança mais nada nas contas). Devolve quantos saíram.
+	 */
+	removeGeneratedTransactions(): Promise<number>;
 }
 
 export interface LoanPrepaymentRepository {
 	list(): Promise<LoanPrepayment[]>;
-	/** Registra a amortização e lança a saída correspondente na conta. */
 	create(data: NewEntity<LoanPrepayment>): Promise<LoanPrepayment>;
-	/** Exclui a amortização e o lançamento dela. */
 	remove(id: ID): Promise<void>;
 }
 

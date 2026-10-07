@@ -8,16 +8,13 @@
 	import { centsToInput, parseAmountToCents } from '#lib/domain/money.ts';
 	import type {
 		AmortizationSystem,
-		ID,
 		Loan,
 		LoanKind,
 		LoanMode,
 		NewEntity
 	} from '#lib/domain/types.ts';
-	import { useAppData } from '#lib/stores/data.svelte.ts';
 	import { confirmAction, toast } from '#lib/stores/ui.svelte.ts';
 	import Button from './Button.svelte';
-	import CategoryPicker from './CategoryPicker.svelte';
 	import Segmented from './Segmented.svelte';
 	import Sheet from './Sheet.svelte';
 
@@ -26,8 +23,6 @@
 		loan?: Loan | null;
 	}
 	let { open = $bindable(), loan = null }: Props = $props();
-
-	const data = useAppData();
 
 	let name = $state('');
 	let kind = $state<LoanKind>('home');
@@ -40,13 +35,7 @@
 	let termText = $state('');
 	let firstDueDate = $state(today());
 	let paidBeforeText = $state('0');
-	let accountId = $state<ID>('');
-	let categoryId = $state<ID | null>(null);
 	let error = $state('');
-
-	const defaultCategory = $derived(
-		data.expenseCategories.find((c) => c.name === 'Financiamentos')?.id ?? null
-	);
 
 	// Recarrega o formulário só quando a folha abre (não a cada sincronização).
 	$effect(() => {
@@ -66,8 +55,6 @@
 		termText = l ? String(l.termMonths) : '';
 		firstDueDate = l?.firstDueDate ?? today();
 		paidBeforeText = String(l?.paidBefore ?? 0);
-		accountId = l?.accountId ?? data.activeAccounts[0]?.id ?? '';
-		categoryId = l ? l.categoryId : defaultCategory;
 		error = '';
 	}
 
@@ -86,7 +73,6 @@
 			return (error = 'O prazo vai de 1 a 600 parcelas.');
 		if (!Number.isInteger(paidBefore) || paidBefore < 0 || paidBefore > term)
 			return (error = 'Parcelas já pagas não pode passar do prazo.');
-		if (!accountId) return (error = 'Escolha a conta das parcelas.');
 
 		const fields: NewEntity<Loan> = {
 			name: name.trim(),
@@ -99,21 +85,12 @@
 			installmentCents: Math.abs(installment ?? 0),
 			termMonths: term,
 			firstDueDate,
-			paidBefore,
-			accountId,
-			categoryId
+			paidBefore
 		};
 		let id = loan?.id;
 		if (loan) await store.loans.update(loan.id, fields);
 		else id = (await store.loans.create(fields)).id;
-		const created = await store.loans.materialize(today());
-		toast(
-			created
-				? `${created} parcela(s) lançada(s)`
-				: loan
-					? 'Financiamento atualizado'
-					: 'Financiamento criado'
-		);
+		toast(loan ? 'Financiamento atualizado' : 'Financiamento criado');
 		open = false;
 		if (!loan && id) void goto(resolve('/financiamentos/[id]', { id }));
 	}
@@ -122,7 +99,7 @@
 		if (!loan) return;
 		const ok = await confirmAction({
 			title: 'Excluir financiamento?',
-			message: 'As parcelas já lançadas continuam no extrato. As próximas deixam de ser criadas.',
+			message: 'A tabela e as amortizações dele somem. O extrato das contas não muda.',
 			confirmLabel: 'Excluir',
 			destructive: true
 		});
@@ -216,18 +193,12 @@
 		<label>
 			<span class="field-label">Parcelas já pagas antes do app</span>
 			<input class="input figures" inputmode="numeric" bind:value={paidBeforeText} />
-			<small>Contam como pagas, mas não entram no extrato.</small>
+			<small>As que já venceram contam como pagas de qualquer forma.</small>
 		</label>
-		<label>
-			<span class="field-label">Conta das parcelas</span>
-			<select class="input" bind:value={accountId}>
-				{#each data.activeAccounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
-			</select>
-		</label>
-		<div>
-			<span class="field-label">Categoria</span>
-			<CategoryPicker bind:value={categoryId} kind="expense" />
-		</div>
+		<p class="hint">
+			O financiamento só acompanha a dívida: nada é lançado nas contas. O pagamento das parcelas
+			aparece no extrato quando você importa ou lança.
+		</p>
 		{#if error}<p class="err">{error}</p>{/if}
 	</form>
 	{#snippet footer()}
@@ -248,6 +219,11 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 12px;
+	}
+	.hint {
+		margin: 0;
+		font-size: 13px;
+		color: var(--ink-2);
 	}
 	small {
 		display: block;

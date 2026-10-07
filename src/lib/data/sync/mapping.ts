@@ -77,11 +77,9 @@ const COLUMNS: Record<LocalTable, string[]> = {
 		'installmentCents',
 		'termMonths',
 		'firstDueDate',
-		'paidBefore',
-		'accountId',
-		'categoryId'
+		'paidBefore'
 	],
-	loanPrepayments: [...BASE, 'loanId', 'date', 'amountCents', 'effect', 'accountId'],
+	loanPrepayments: [...BASE, 'loanId', 'date', 'amountCents', 'effect'],
 	transactions: [
 		...BASE,
 		'accountId',

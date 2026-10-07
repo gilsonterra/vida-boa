@@ -1,6 +1,5 @@
 import { addDays, daysBetween } from '../../domain/dates';
 import { stableUuid } from '../../domain/ids';
-import { buildSchedule, installmentKey, prepaymentKey } from '../../domain/loans';
 import { dueOccurrences } from '../../domain/recurrence';
 import { SEED_ACCOUNT_TYPES, SEED_CATEGORIES, SEED_RULES, SEED_VERSION } from '../../domain/seed';
 import type {
@@ -10,7 +9,6 @@ import type {
 	Entity,
 	ID,
 	ImportBatch,
-	Loan,
 	LoanPrepayment,
 	NewEntity,
 	RecurringRule,
@@ -280,40 +278,25 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 
 		loans: {
 			...crudRepository(db.loans),
-			async materialize(upTo) {
-				let created = 0;
+			async removeGeneratedTransactions() {
+				let removed = 0;
 				await db.transaction('rw', [db.loans, db.loanPrepayments, db.transactions], async () => {
-					const loans = (await db.loans.toArray()).filter(isLive);
-					const prepayments = await db.loanPrepayments.toArray();
-					for (const loan of loans) {
-						const { installments } = buildSchedule(loan, prepayments);
-						const due = installments.filter((i) => i.n > loan.paidBefore && i.dueDate <= upTo);
-						if (!due.length) continue;
-						const rows = due.map((i) =>
-							stamp<Transaction>({
-								id: stableUuid(installmentKey(loan.id, i.n)),
-								accountId: loan.accountId,
-								date: i.dueDate,
-								amountCents: -i.paymentCents,
-								description: `${loan.name} · parcela ${i.n}/${installments.length}`,
-								notes: '',
-								kind: 'expense',
-								categoryId: loan.categoryId,
-								transferId: null,
-								fitId: null,
-								importBatchId: null,
-								recurringId: null
-							})
-						);
-						// Parcela já lançada (mesmo excluída pelo usuário) não volta.
-						const existing = await db.transactions.bulkGet(rows.map((r) => r.id));
-						const fresh = rows.filter((_, i) => !existing[i]);
-						if (fresh.length) await db.transactions.bulkAdd(fresh);
-						created += fresh.length;
-					}
+					// Mesmos ids determinísticos que as versões antigas usavam ao lançar.
+					const ids: ID[] = [];
+					for (const loan of await db.loans.toArray())
+						for (let n = 1; n <= 600; n++) ids.push(stableUuid(`loan:${loan.id}:${n}`));
+					for (const p of await db.loanPrepayments.toArray())
+						ids.push(stableUuid(`loan-prepayment:${p.id}`));
+					const live = (await db.transactions.bulkGet(ids)).filter((t) => t && isLive(t));
+					if (!live.length) return;
+					const ts = now();
+					await db.transactions.bulkUpdate(
+						live.map((t) => ({ key: t!.id, changes: { deletedAt: ts, updatedAt: ts } }))
+					);
+					removed = live.length;
 				});
-				if (created) notifyChange();
-				return created;
+				if (removed) notifyChange();
+				return removed;
 			}
 		},
 
@@ -323,38 +306,13 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 			},
 			async create(data) {
 				const row = stamp<LoanPrepayment>(data);
-				await db.transaction('rw', db.loans, db.loanPrepayments, db.transactions, async () => {
-					const loan = (await db.loans.get(row.loanId)) as Loan | undefined;
-					await db.loanPrepayments.add(row);
-					await db.transactions.add(
-						stamp<Transaction>({
-							id: stableUuid(prepaymentKey(row.id)),
-							accountId: row.accountId,
-							date: row.date,
-							amountCents: -Math.abs(row.amountCents),
-							description: `${loan?.name ?? 'Financiamento'} · amortização extra`,
-							notes: '',
-							kind: 'expense',
-							categoryId: loan?.categoryId ?? null,
-							transferId: null,
-							fitId: null,
-							importBatchId: null,
-							recurringId: null
-						})
-					);
-				});
+				await db.loanPrepayments.add(row);
 				notifyChange();
 				return row;
 			},
 			async remove(id) {
 				const ts = now();
-				await db.transaction('rw', db.loanPrepayments, db.transactions, async () => {
-					await db.loanPrepayments.update(id, { deletedAt: ts, updatedAt: ts });
-					await db.transactions.update(stableUuid(prepaymentKey(id)), {
-						deletedAt: ts,
-						updatedAt: ts
-					});
-				});
+				await db.loanPrepayments.update(id, { deletedAt: ts, updatedAt: ts });
 				notifyChange();
 			}
 		},

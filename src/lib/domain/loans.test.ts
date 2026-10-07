@@ -19,8 +19,6 @@ function loan(over: Partial<Loan> = {}): Loan {
 		termMonths: 12,
 		firstDueDate: '2026-01-10',
 		paidBefore: 0,
-		accountId: 'acc-1',
-		categoryId: null,
 		...over
 	};
 }
@@ -35,7 +33,6 @@ function prepay(over: Partial<LoanPrepayment>): LoanPrepayment {
 		date: '2026-06-20',
 		amountCents: 2_000_000,
 		effect: 'term',
-		accountId: 'acc-1',
 		...over
 	};
 }
@@ -147,5 +144,31 @@ describe('saldo devedor numa data', () => {
 		);
 		expect(outstandingAt(s, '2026-03-15')).toBe(s.installments[2].balanceCents - 2_000_000);
 		expect(outstandingAt(s, '2030-01-01')).toBe(0);
+	});
+});
+
+describe('saldo informado pelo banco', () => {
+	const casa = loan({
+		principalCents: 21_300_000,
+		ratePercent: 9.98,
+		ratePeriod: 'year',
+		termMonths: 360,
+		firstDueDate: '2024-10-14'
+	});
+	const ajuste = prepay({ date: '2026-10-14', amountCents: 7_709_363, effect: 'balance' });
+
+	it('substitui o saldo calculado e recalcula o prazo mantendo a parcela', () => {
+		const s = buildSchedule(casa, [ajuste]);
+		expect(outstandingAt(s, '2026-10-20')).toBe(7_709_363);
+		expect(s.installments.filter((i) => i.n > 25)).toHaveLength(53);
+		expect(s.installments[25].paymentCents).toBe(s.installments[0].paymentCents);
+	});
+
+	it('não conta como valor pago', () => {
+		const sem = buildSchedule(casa, []);
+		const com = buildSchedule(casa, [ajuste]);
+		const pagas = (x: typeof com) => x.installments.reduce((t, i) => t + i.paymentCents, 0);
+		expect(com.totalPaidCents).toBe(pagas(com));
+		expect(sem.totalPaidCents).toBe(pagas(sem));
 	});
 });

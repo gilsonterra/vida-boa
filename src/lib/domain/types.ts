@@ -137,20 +137,21 @@ export interface Loan extends Entity {
 	firstDueDate: ISODate;
 	/** Parcelas pagas antes de cadastrar no app: contam como pagas, sem gerar lançamento. */
 	paidBefore: number;
-	/** Conta de onde saem as parcelas. */
-	accountId: ID;
-	categoryId: ID | null;
 }
 
 /** O que uma amortização extra reduz: o número de parcelas ou o valor de cada uma. */
-export type PrepaymentEffect = 'term' | 'installment';
+/**
+ * `term`/`installment`: amortização extra (valor pago a mais).
+ * `balance`: saldo devedor informado pelo banco (ex.: correção pela TR); o valor é o saldo
+ * novo, não um pagamento.
+ */
+export type PrepaymentEffect = 'term' | 'installment' | 'balance';
 
 export interface LoanPrepayment extends Entity {
 	loanId: ID;
 	date: ISODate;
 	amountCents: number;
 	effect: PrepaymentEffect;
-	accountId: ID;
 }
 
 /** Campos que o chamador informa ao criar uma entidade. */

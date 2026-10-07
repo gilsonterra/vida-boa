@@ -12,7 +12,7 @@
 		Plus,
 		TriangleAlert
 	} from '@lucide/svelte';
-	import { addDays, formatDayShort, monthKey, monthRange, today } from '#lib/domain/dates.ts';
+	import { addDays, formatDayShort, monthKey, today } from '#lib/domain/dates.ts';
 	import { upcomingDates } from '#lib/domain/recurrence.ts';
 	import {
 		chartMonths,
@@ -51,17 +51,11 @@
 		return data.transactions.filter((t) => ids.has(t.accountId));
 	});
 
-	// Saldo devedor dos financiamentos entra como dívida.
+	// Patrimônio é só o que está nas contas; o saldo devedor dos financiamentos aparece à parte.
 	const netWorth = $derived(
-		visibleAccounts.reduce((s, a) => s + (data.balances.get(a.id) ?? 0), 0) - data.debtAt(now)
+		visibleAccounts.reduce((s, a) => s + (data.balances.get(a.id) ?? 0), 0)
 	);
-	/** Patrimônio no fim de cada mês, descontando a dívida da época (o mês atual vai até hoje). */
-	function withDebt(points: Array<{ month: string; totalCents: number }>) {
-		return points.map((p) => {
-			const end = monthRange(p.month).end;
-			return { ...p, totalCents: p.totalCents - data.debtAt(end < now ? end : now) };
-		});
-	}
+	const debt = $derived(data.debtAt(now));
 	/** Período do gráfico, em meses ('all' = desde o primeiro lançamento). */
 	type Range = '3' | '6' | '12' | 'all';
 	let range = $state<Range>('6');
@@ -76,10 +70,10 @@
 			? chartMonths(visibleTx, thisMonth, 600, 2)
 			: chartMonths(visibleTx, thisMonth, Number(range), Number(range))
 	);
-	const series = $derived(withDebt(netWorthSeries(visibleAccounts, visibleTx, months)));
+	const series = $derived(netWorthSeries(visibleAccounts, visibleTx, months));
 	/** Variação do mês atual, independente do período escolhido no gráfico. */
 	const lastTwo = $derived(
-		withDebt(netWorthSeries(visibleAccounts, visibleTx, chartMonths(visibleTx, thisMonth, 2, 2)))
+		netWorthSeries(visibleAccounts, visibleTx, chartMonths(visibleTx, thisMonth, 2, 2))
 	);
 	const monthDelta = $derived(
 		lastTwo.length > 1 ? lastTwo[1].totalCents - lastTwo[0].totalCents : 0
@@ -185,6 +179,12 @@
 							>{monthDelta === 0 ? 'sem variação no mês' : 'neste mês'}</Trend
 						>
 					</p>
+					{#if debt > 0}
+						<a class="debt" href={resolve('/financiamentos')}>
+							<span>Falta pagar nos financiamentos</span>
+							<Amount cents={-debt} size="md" tone="loss" />
+						</a>
+					{/if}
 				</section>
 				<section class="quick" aria-label="Atalhos">
 					<button type="button" onclick={() => openEditor({ defaults: { kind: 'expense' } })}>
@@ -389,6 +389,23 @@
 	.delta {
 		margin-top: 16px;
 	}
+	.debt {
+		display: inline-flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		margin-top: 18px;
+		padding: 10px 18px;
+		border-radius: 16px;
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
+		color: inherit;
+		text-decoration: none;
+	}
+	.debt span {
+		font-size: 13px;
+		color: var(--ink-2);
+	}
 	.chart {
 		margin: 18px -20px 0;
 	}
@@ -570,7 +587,8 @@
 		}
 		.side {
 			position: sticky;
-			top: 24px;
+			/* Abaixo da barra de menu do topo. */
+			top: 100px;
 			padding: 12px 24px 24px;
 			border-radius: 28px;
 			background: var(--surface);

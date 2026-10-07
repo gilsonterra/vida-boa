@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { stableUuid } from '../../domain/ids';
 import type { Account } from '../../domain/types';
 import { buildImportPlan } from '../../import/plan';
 import type { OfxStatement } from '../../ofx/parse';
@@ -264,6 +265,55 @@ describe('recorrentes', () => {
 			['2026-10-05', -800000],
 			['2026-09-05', -800000],
 			['2026-08-05', -800000]
+		]);
+	});
+});
+
+describe('financiamentos', () => {
+	it('exclui os lançamentos que versões antigas criavam para parcelas e amortizações', async () => {
+		const loan = await store.loans.create({
+			name: 'Casa',
+			kind: 'home',
+			mode: 'simple',
+			system: 'price',
+			principalCents: 0,
+			ratePercent: 0,
+			ratePeriod: 'month',
+			installmentCents: 100000,
+			termMonths: 12,
+			firstDueDate: '2026-08-10',
+			paidBefore: 0
+		});
+		const pre = await store.loanPrepayments.create({
+			loanId: loan.id,
+			date: '2026-09-01',
+			amountCents: 50000,
+			effect: 'term'
+		});
+		const tx = (id: string, description: string) =>
+			store.transactions.create({
+				id,
+				accountId: checking.id,
+				date: '2026-09-10',
+				amountCents: -100000,
+				description,
+				notes: '',
+				kind: 'expense',
+				categoryId: null,
+				transferId: null,
+				fitId: null,
+				importBatchId: null,
+				recurringId: null
+			});
+		await tx(stableUuid(`loan:${loan.id}:1`), 'Casa · parcela 1/12');
+		await tx(stableUuid(`loan-prepayment:${pre.id}`), 'Casa · amortização extra');
+		await tx(crypto.randomUUID(), 'Parcela da casa (extrato do banco)');
+
+		expect(await store.transactions.list()).toHaveLength(3);
+		expect(await store.loans.removeGeneratedTransactions()).toBe(2);
+		expect(await store.loans.removeGeneratedTransactions()).toBe(0);
+		expect((await store.transactions.list()).map((t) => t.description)).toEqual([
+			'Parcela da casa (extrato do banco)'
 		]);
 	});
 });

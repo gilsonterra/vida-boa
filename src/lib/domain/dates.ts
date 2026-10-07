@@ -123,3 +123,8 @@ export function formatDayHeading(date: ISODate, ref: ISODate = today()): string 
 export function formatDayShort(date: ISODate): string {
 	return dayShort.format(toUTC(date)).replace('.', '').replace(' de ', ' ');
 }
+
+/** `2026-10-03` → `03 out 2026` */
+export function formatDayShortYear(date: ISODate): string {
+	return `${formatDayShort(date)} ${date.slice(0, 4)}`;
+}

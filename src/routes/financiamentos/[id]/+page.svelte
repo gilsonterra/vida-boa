@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { Pencil, Trash2 } from '@lucide/svelte';
 	import { store } from '#lib/data/index.ts';
-	import { formatDayShort, today } from '#lib/domain/dates.ts';
+	import { formatDayShort, formatDayShortYear, today } from '#lib/domain/dates.ts';
 	import {
 		buildSchedule,
 		LOAN_KIND_LABEL,
@@ -34,23 +34,37 @@
 	let prepayAmount = $state('');
 	let prepayDate = $state(now);
 	let prepayEffect = $state<PrepaymentEffect>('term');
-	let prepayAccount = $state<ID>('');
 	let prepayError = $state('');
 
 	const loan = $derived(data.loans.find((l) => l.id === params.id));
 	const schedule = $derived(loan ? data.schedules.get(loan.id) : undefined);
-	const liveTxIds = $derived(new Set(data.transactions.map((t) => t.id)));
 	const paid = $derived(
-		loan && schedule ? paidInstallments(loan, schedule, liveTxIds) : new Set<number>()
+		loan && schedule ? paidInstallments(loan, schedule, now) : new Set<number>()
 	);
 	const prepayments = $derived(
 		data.prepayments
 			.filter((p) => p.loanId === params.id)
-			.sort((a, b) => b.date.localeCompare(a.date))
+			.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
 	);
-	/** Juros que deixam de ser pagos por causa das amortizações extras. */
+	/** Juros que deixam de ser pagos por causa das amortizações extras (ajustes de saldo à parte). */
 	const saved = $derived(
-		loan && schedule ? buildSchedule(loan, []).totalInterestCents - schedule.totalInterestCents : 0
+		loan && schedule
+			? buildSchedule(
+					loan,
+					prepayments.filter((p) => p.effect === 'balance')
+				).totalInterestCents - schedule.totalInterestCents
+			: 0
+	);
+	const isBalance = $derived(prepayEffect === 'balance');
+	/** Parcelas pagas (inclusive as de antes do app) mais as amortizações extras até hoje. */
+	const paidCents = $derived(
+		schedule
+			? schedule.installments.reduce((t, i) => t + (paid.has(i.n) ? i.paymentCents : 0), 0) +
+					schedule.prepayments.reduce(
+						(t, p) => t + (p.effect !== 'balance' && p.date <= now ? p.appliedCents : 0),
+						0
+					)
+			: 0
 	);
 	const balance = $derived(schedule ? outstandingAt(schedule, now) : 0);
 	const next = $derived(schedule?.installments.find((i) => !paid.has(i.n)));
@@ -65,11 +79,10 @@
 		return `${pct.format(loan.ratePercent)}% ${loan.ratePeriod === 'year' ? 'a.a.' : 'a.m.'} (${other})`;
 	});
 
-	function openPrepay() {
+	function openPrepay(effect: PrepaymentEffect = 'term') {
 		prepayAmount = '';
 		prepayDate = now;
-		prepayEffect = 'term';
-		prepayAccount = loan?.accountId ?? data.activeAccounts[0]?.id ?? '';
+		prepayEffect = effect;
 		prepayError = '';
 		prepayOpen = true;
 	}
@@ -79,29 +92,30 @@
 		if (!loan) return;
 		const cents = parseAmountToCents(prepayAmount);
 		if (!cents) return (prepayError = 'Informe um valor maior que zero.');
-		if (cents > balance) return (prepayError = 'O valor passa do saldo devedor.');
-		if (!prepayAccount) return (prepayError = 'Escolha a conta.');
+		if (!isBalance && cents > balance) return (prepayError = 'O valor passa do saldo devedor.');
 		await store.loanPrepayments.create({
 			loanId: loan.id,
 			date: prepayDate,
 			amountCents: Math.abs(cents),
-			effect: prepayEffect,
-			accountId: prepayAccount
+			effect: prepayEffect
 		});
-		toast('Amortização registrada');
+		toast(isBalance ? 'Saldo atualizado' : 'Amortização registrada');
 		prepayOpen = false;
 	}
 
-	async function removePrepay(id: ID) {
+	async function removePrepay(id: ID, effect: PrepaymentEffect) {
 		const ok = await confirmAction({
-			title: 'Excluir amortização?',
-			message: 'O lançamento dela sai do extrato e a tabela volta a ser calculada sem ela.',
+			title: effect === 'balance' ? 'Excluir saldo informado?' : 'Excluir amortização?',
+			message:
+				effect === 'balance'
+					? 'A tabela volta a usar o saldo calculado pelo app.'
+					: 'A tabela volta a ser calculada sem ela.',
 			confirmLabel: 'Excluir',
 			destructive: true
 		});
 		if (!ok) return;
 		await store.loanPrepayments.remove(id);
-		toast('Amortização excluída');
+		toast('Excluído');
 	}
 </script>
 
@@ -159,6 +173,10 @@
 				<dd><Amount cents={schedule.totalInterestCents} size="md" /></dd>
 			</div>
 			<div>
+				<dt>Valor pago</dt>
+				<dd><Amount cents={paidCents} size="md" /></dd>
+			</div>
+			<div>
 				<dt>Total a pagar</dt>
 				<dd><Amount cents={schedule.totalPaidCents} size="md" /></dd>
 			</div>
@@ -173,8 +191,11 @@
 		<section class="block">
 			<header>
 				<h2>Amortizações extras</h2>
-				{#if balance > 0}<Button size="sm" variant="secondary" onclick={openPrepay}
-						>Amortizar</Button
+				{#if balance > 0}<span class="btns"
+						><Button size="sm" variant="secondary" onclick={() => openPrepay('balance')}
+							>Informar saldo</Button
+						><Button size="sm" variant="secondary" onclick={() => openPrepay()}>Amortizar</Button
+						></span
 					>{/if}
 			</header>
 			{#if prepayments.length}
@@ -182,11 +203,21 @@
 					{#each prepayments as p (p.id)}
 						<li>
 							<span class="main">
-								<span>{formatDayShort(p.date)}</span>
-								<small>{p.effect === 'term' ? 'Reduziu o prazo' : 'Reduziu a parcela'}</small>
+								<span>{formatDayShortYear(p.date)}</span>
+								<small
+									>{p.effect === 'balance'
+										? 'Saldo informado pelo banco'
+										: p.effect === 'term'
+											? 'Reduziu o prazo'
+											: 'Reduziu a parcela'}</small
+								>
 							</span>
-							<Amount cents={-p.amountCents} size="sm" tone="loss" />
-							<IconButton label="Excluir amortização" onclick={() => removePrepay(p.id)}
+							{#if p.effect === 'balance'}<Amount cents={p.amountCents} size="sm" />{:else}<Amount
+									cents={-p.amountCents}
+									size="sm"
+									tone="loss"
+								/>{/if}
+							<IconButton label="Excluir" onclick={() => removePrepay(p.id, p.effect)}
 								><Trash2 size={18} strokeWidth={1.6} /></IconButton
 							>
 						</li>
@@ -227,7 +258,9 @@
 								<tr class="extra">
 									<td></td>
 									<td>{formatDayShort(p.date)}</td>
-									<td colspan="2">Amortização extra</td>
+									<td colspan="2">
+										{p.effect === 'balance' ? 'Ajuste pelo saldo do banco' : 'Amortização extra'}
+									</td>
 									<td><Amount cents={p.appliedCents} size="sm" /></td>
 									<td></td>
 								</tr>
@@ -246,11 +279,14 @@
 
 {#if loan}<LoanEditor bind:open={editorOpen} {loan} />{/if}
 
-<Sheet bind:open={prepayOpen} title="Amortização extra">
+<Sheet
+	bind:open={prepayOpen}
+	title={isBalance ? 'Saldo informado pelo banco' : 'Amortização extra'}
+>
 	<form id="prepay-form" onsubmit={savePrepay} novalidate>
 		<div class="two">
 			<label>
-				<span class="field-label">Valor</span>
+				<span class="field-label">{isBalance ? 'Saldo devedor' : 'Valor'}</span>
 				<input
 					class="input figures"
 					inputmode="decimal"
@@ -263,29 +299,33 @@
 				<input class="input" type="date" bind:value={prepayDate} />
 			</label>
 		</div>
-		<Segmented
-			label="O que reduzir"
-			bind:value={prepayEffect}
-			options={[
-				{ value: 'term', label: 'Prazo' },
-				{ value: 'installment', label: 'Parcela' }
-			]}
-		/>
-		<p class="hint">
-			{prepayEffect === 'term'
-				? 'A parcela continua igual e o financiamento acaba antes: é o que mais economiza juros.'
-				: 'O prazo continua o mesmo e as próximas parcelas ficam menores.'}
-		</p>
-		<label>
-			<span class="field-label">Conta</span>
-			<select class="input" bind:value={prepayAccount}>
-				{#each data.activeAccounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
-			</select>
-		</label>
+		{#if isBalance}
+			<p class="hint">
+				Use o saldo do extrato ou do app do banco (ele inclui correções como a TR, que o app não
+				calcula). Use uma data depois da última parcela paga: a parcela continua a mesma e o prazo é
+				recalculado a partir desse saldo.
+			</p>
+		{:else}
+			<Segmented
+				label="O que reduzir"
+				bind:value={prepayEffect}
+				options={[
+					{ value: 'term', label: 'Prazo' },
+					{ value: 'installment', label: 'Parcela' }
+				]}
+			/>
+			<p class="hint">
+				{prepayEffect === 'term'
+					? 'A parcela continua igual e o financiamento acaba antes: é o que mais economiza juros.'
+					: 'O prazo continua o mesmo e as próximas parcelas ficam menores.'}
+			</p>
+		{/if}
 		{#if prepayError}<p class="err">{prepayError}</p>{/if}
 	</form>
 	{#snippet footer()}
-		<Button type="submit" form="prepay-form" size="lg" block>Registrar</Button>
+		<Button type="submit" form="prepay-form" size="lg" block
+			>{isBalance ? 'Salvar' : 'Registrar'}</Button
+		>
 	{/snippet}
 </Sheet>
 
@@ -345,6 +385,10 @@
 	h2 {
 		font-size: 17px;
 		margin: 0;
+	}
+	.btns {
+		display: flex;
+		gap: 8px;
 	}
 	.prepays {
 		list-style: none;

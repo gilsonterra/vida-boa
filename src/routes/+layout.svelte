@@ -42,7 +42,7 @@
 	$effect(() => {
 		if (!signedIn) return;
 		void store.recurring.materialize(today());
-		void store.loans.materialize(today());
+		void store.loans.removeGeneratedTransactions();
 		if (page.url.searchParams.has('novo')) {
 			openEditor({ defaults: { kind: 'expense' } });
 			replaceState(page.url.pathname, {});
@@ -109,17 +109,16 @@
 		margin: 0 auto;
 		padding-bottom: calc(108px + env(safe-area-inset-bottom));
 	}
+	/* Telas largas: o menu fica numa barra fixa no topo (12px + 64px de altura). */
 	@media (min-width: 900px) {
 		main {
-			margin-left: max(256px, calc(256px + (100vw - 256px - 760px) / 2));
-			padding: 24px 24px 64px;
+			padding: 100px 24px 64px;
 		}
 	}
 	/* A tela inicial usa a largura toda em telas grandes (duas colunas). */
 	@media (min-width: 1100px) {
 		main:has(> :global(.wide)) {
 			max-width: 1240px;
-			margin-left: max(256px, calc(256px + (100vw - 256px - 1240px) / 2));
 		}
 	}
 	.config {
