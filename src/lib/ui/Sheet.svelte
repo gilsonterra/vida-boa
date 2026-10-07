@@ -215,7 +215,6 @@
 	}
 	h2 {
 		font-size: 24px;
-		font-variation-settings: 'opsz' 48;
 	}
 	.close {
 		display: grid;

@@ -51,10 +51,10 @@
 	.tx {
 		width: 100%;
 		text-align: left;
-		border-radius: 0;
+		transition: transform 120ms;
 	}
 	.tx:active {
-		background: var(--accent-soft);
+		transform: scale(0.985);
 	}
 	.main {
 		flex: 1;
@@ -67,7 +67,7 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-weight: 450;
+		font-weight: 600;
 	}
 	.sub {
 		font-size: 13px;

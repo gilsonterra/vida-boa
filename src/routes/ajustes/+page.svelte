@@ -188,8 +188,7 @@
 		margin-bottom: 40px;
 	}
 	h2 {
-		font-size: 22px;
-		font-variation-settings: 'opsz' 48;
+		font-size: 17px;
 		margin-bottom: 12px;
 	}
 	.link {

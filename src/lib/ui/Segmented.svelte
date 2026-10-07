@@ -39,34 +39,33 @@
 		position: relative;
 		display: grid;
 		grid-template-columns: repeat(var(--n), 1fr);
-		padding: 3px;
+		padding: 4px;
 		border-radius: 999px;
-		background: var(--sunken);
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
 	}
 	.thumb {
 		position: absolute;
-		top: 3px;
-		bottom: 3px;
-		left: 3px;
-		width: calc((100% - 6px) / var(--n));
+		top: 4px;
+		bottom: 4px;
+		left: 4px;
+		width: calc((100% - 8px) / var(--n));
 		transform: translateX(calc(var(--i) * 100%));
 		border-radius: 999px;
-		background: var(--surface);
-		box-shadow:
-			0 1px 2px rgb(0 0 0 / 0.08),
-			0 0 0 1px var(--rule);
+		background: var(--brass);
 		transition: transform 280ms var(--ease-out-quint);
 	}
 	button {
 		position: relative;
 		height: 36px;
 		font-size: 14px;
+		font-weight: 500;
 		color: var(--ink-2);
 		transition: color 160ms;
 	}
 	button.on {
-		color: var(--ink);
-		font-weight: 500;
+		color: var(--on-accent);
+		font-weight: 600;
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.thumb {

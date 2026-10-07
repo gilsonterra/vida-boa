@@ -467,7 +467,7 @@
 		padding: 26px 0 10px;
 	}
 	.amount .cur {
-		font-family: var(--font-serif);
+		font-family: var(--font-display);
 		font-size: 22px;
 		color: var(--ink-3);
 	}
@@ -478,10 +478,9 @@
 		border: 0;
 		outline: none;
 		text-align: left;
-		font-family: var(--font-serif);
+		font-family: var(--font-display);
 		font-size: 52px;
 		font-weight: 300;
-		font-variation-settings: 'opsz' 144;
 		letter-spacing: -0.03em;
 		font-variant-numeric: lining-nums tabular-nums;
 	}

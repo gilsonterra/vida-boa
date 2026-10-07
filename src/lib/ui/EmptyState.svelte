@@ -22,9 +22,8 @@
 		text-align: center;
 	}
 	.title {
-		font-family: var(--font-serif);
+		font-family: var(--font-display);
 		font-size: 22px;
-		font-variation-settings: 'opsz' 48;
 	}
 	.text {
 		margin: 8px auto 0;

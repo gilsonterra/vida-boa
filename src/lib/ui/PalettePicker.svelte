@@ -111,9 +111,8 @@
 		color: var(--sw-on);
 	}
 	.name {
-		font-family: var(--font-serif);
+		font-family: var(--font-display);
 		font-size: 18px;
-		font-variation-settings: 'opsz' 36;
 	}
 	.about {
 		font-size: 12.5px;

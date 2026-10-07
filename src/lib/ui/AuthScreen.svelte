@@ -257,16 +257,13 @@
 		color: var(--brass);
 	}
 	.name {
-		font-family: var(--font-serif);
-		font-style: italic;
-		font-weight: 330;
+		font-family: var(--font-display);
+		font-weight: 700;
 		font-size: 26px;
-		font-variation-settings: 'opsz' 144;
 	}
 	h1 {
 		font-size: clamp(34px, 9vw, 42px);
 		font-weight: 300;
-		font-variation-settings: 'opsz' 144;
 		letter-spacing: -0.025em;
 	}
 	.lead {

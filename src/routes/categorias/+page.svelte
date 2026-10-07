@@ -76,7 +76,7 @@
 
 <PageHeader title="Categorias" back={{ href: resolve('/ajustes'), label: 'Ajustes' }}>
 	{#snippet actions()}
-		<IconButton label="Nova categoria" onclick={() => edit(null)}
+		<IconButton tone="hi" label="Nova categoria" onclick={() => edit(null)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
 	{/snippet}

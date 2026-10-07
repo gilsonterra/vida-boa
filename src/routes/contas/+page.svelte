@@ -18,7 +18,7 @@
 
 <PageHeader title="Contas e cartões" back={{ href: resolve('/ajustes'), label: 'Ajustes' }}>
 	{#snippet actions()}
-		<IconButton label="Nova conta" onclick={() => (editorOpen = true)}
+		<IconButton tone="hi" label="Nova conta" onclick={() => (editorOpen = true)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
 	{/snippet}

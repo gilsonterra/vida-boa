@@ -110,8 +110,15 @@
 	}
 	@media (min-width: 900px) {
 		main {
-			margin-left: max(232px, calc(232px + (100vw - 232px - 760px) / 2));
+			margin-left: max(256px, calc(256px + (100vw - 256px - 760px) / 2));
 			padding: 24px 24px 64px;
+		}
+	}
+	/* A tela inicial usa a largura toda em telas grandes (duas colunas). */
+	@media (min-width: 1100px) {
+		main:has(> :global(.wide)) {
+			max-width: 1240px;
+			margin-left: max(256px, calc(256px + (100vw - 256px - 1240px) / 2));
 		}
 	}
 	.config {

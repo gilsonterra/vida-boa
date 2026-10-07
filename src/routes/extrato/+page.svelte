@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dragScroll } from '#lib/ui/drag-scroll.ts';
 	import { Search, X } from '@lucide/svelte';
 	import { formatDayHeading, monthKey, today } from '#lib/domain/dates.ts';
 	import { inMonth, summarize } from '#lib/domain/reports.ts';
@@ -80,7 +81,7 @@
 
 		{#if !query}<MonthSwitcher bind:value={month} />{/if}
 
-		<div class="chips no-scrollbar" role="radiogroup" aria-label="Filtrar por tipo">
+		<div class="chips no-scrollbar" use:dragScroll role="radiogroup" aria-label="Filtrar por tipo">
 			<select class="chip select" bind:value={accountId} aria-label="Conta">
 				<option value="">Todas as contas</option>
 				{#each data.accounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
@@ -168,7 +169,7 @@
 		gap: 8px;
 		overflow-x: auto;
 		margin-inline: -20px;
-		padding-inline: 20px;
+		padding: 2px 20px 4px;
 	}
 	.chip {
 		flex-shrink: 0;
@@ -176,14 +177,15 @@
 		padding: 0 14px;
 		border-radius: 999px;
 		font-size: 13.5px;
-		color: var(--ink-2);
-		box-shadow: inset 0 0 0 1px var(--rule-strong);
-		background: transparent;
+		font-weight: 500;
+		color: var(--ink);
+		box-shadow: var(--shadow-card);
+		background: var(--surface);
 	}
 	.chip.on {
-		background: var(--ink);
-		color: var(--paper);
-		box-shadow: none;
+		background: var(--brass);
+		color: var(--on-accent);
+		font-weight: 600;
 	}
 	.chip.select {
 		appearance: none;
@@ -193,9 +195,11 @@
 	.totals {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		margin-top: 22px;
-		padding: 14px 0;
-		border-block: 1px solid var(--rule);
+		margin-top: 18px;
+		padding: 16px;
+		border-radius: var(--radius);
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
 	}
 	.day {
 		margin-top: 26px;
@@ -204,12 +208,10 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		padding-bottom: 6px;
-		border-bottom: 1px solid var(--rule-strong);
+		padding-bottom: 10px;
 	}
 	.day h2 {
 		font-size: 17px;
-		font-variation-settings: 'opsz' 24;
 	}
 	.day :global(.day-net) {
 		font-size: 13px;

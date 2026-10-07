@@ -40,11 +40,9 @@
 		animation: rise 700ms var(--ease-out-quint) both;
 	}
 	.name {
-		font-family: var(--font-serif);
-		font-style: italic;
+		font-family: var(--font-display);
 		font-weight: 300;
 		font-size: 44px;
-		font-variation-settings: 'opsz' 144;
 		letter-spacing: -0.02em;
 		animation: rise 700ms 90ms var(--ease-out-quint) both;
 	}

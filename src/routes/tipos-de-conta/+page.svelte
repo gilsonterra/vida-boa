@@ -59,7 +59,7 @@
 	subtitle="A natureza do tipo define como o app trata a conta: cartões guardam dívida, investimentos aparecem separados."
 >
 	{#snippet actions()}
-		<IconButton label="Novo tipo" onclick={() => edit(null)}
+		<IconButton tone="hi" label="Novo tipo" onclick={() => edit(null)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
 	{/snippet}

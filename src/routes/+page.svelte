@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import {
-		ChevronRight,
+		ArrowDown,
+		ArrowUpRight,
 		CloudCheck,
 		CloudOff,
 		Eye,
 		EyeOff,
 		FileUp,
-		Gem,
 		LoaderCircle,
+		Plus,
 		TriangleAlert
 	} from '@lucide/svelte';
 	import { addDays, formatDayShort, monthKey, today } from '#lib/domain/dates.ts';
@@ -22,7 +23,7 @@
 	} from '#lib/domain/reports.ts';
 	import { useAppData } from '#lib/stores/data.svelte.ts';
 	import { cloud } from '#lib/stores/sync.svelte.ts';
-	import { togglePrivacy, ui } from '#lib/stores/ui.svelte.ts';
+	import { openEditor, togglePrivacy, ui } from '#lib/stores/ui.svelte.ts';
 	import AccountEditor from '#lib/ui/AccountEditor.svelte';
 	import Amount from '#lib/ui/Amount.svelte';
 	import Button from '#lib/ui/Button.svelte';
@@ -31,13 +32,18 @@
 	import LineChart from '#lib/ui/charts/LineChart.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { ACCOUNT_KIND_ICON } from '#lib/ui/icons.ts';
+	import Segmented from '#lib/ui/Segmented.svelte';
 	import TransactionRow from '#lib/ui/TransactionRow.svelte';
 	import CategoryMark from '#lib/ui/CategoryMark.svelte';
+	import { dragScroll } from '#lib/ui/drag-scroll.ts';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	const data = useAppData();
 	const now = today();
 	const thisMonth = monthKey(now);
 	let newAccountOpen = $state(false);
+	/** Telas largas: duas colunas, com o gráfico grande à direita. */
+	const wide = new MediaQuery('min-width: 1100px');
 
 	const visibleAccounts = $derived(data.activeAccounts);
 	const visibleTx = $derived.by(() => {
@@ -48,23 +54,42 @@
 	const netWorth = $derived(
 		visibleAccounts.reduce((s, a) => s + (data.balances.get(a.id) ?? 0), 0)
 	);
-	const series = $derived(
-		netWorthSeries(visibleAccounts, visibleTx, chartMonths(visibleTx, thisMonth))
+	/** Período do gráfico, em meses ('all' = desde o primeiro lançamento). */
+	type Range = '3' | '6' | '12' | 'all';
+	let range = $state<Range>('6');
+	const RANGES: Array<{ value: Range; label: string }> = [
+		{ value: '3', label: '3M' },
+		{ value: '6', label: '6M' },
+		{ value: '12', label: '1A' },
+		{ value: 'all', label: 'Tudo' }
+	];
+	const months = $derived(
+		range === 'all'
+			? chartMonths(visibleTx, thisMonth, 600, 2)
+			: chartMonths(visibleTx, thisMonth, Number(range), Number(range))
+	);
+	const series = $derived(netWorthSeries(visibleAccounts, visibleTx, months));
+	/** Variação do mês atual, independente do período escolhido no gráfico. */
+	const lastTwo = $derived(
+		netWorthSeries(visibleAccounts, visibleTx, chartMonths(visibleTx, thisMonth, 2, 2))
 	);
 	const monthDelta = $derived(
-		series.length > 1
-			? series[series.length - 1].totalCents - series[series.length - 2].totalCents
-			: 0
+		lastTwo.length > 1 ? lastTwo[1].totalCents - lastTwo[0].totalCents : 0
 	);
 	const month = $derived(summarize(inMonth(visibleTx, thisMonth)));
 	const recent = $derived(visibleTx.slice(0, 6));
 
-	const groups = $derived(
-		KIND_GROUPS.map((g) => ({
-			...g,
-			accounts: visibleAccounts.filter((a) => g.kinds.includes(data.kindOf(a.id)))
-		})).filter((g) => g.accounts.length > 0)
+	/** Contas na ordem dos grupos (contas, cartões, investimentos...), para o carrossel. */
+	const orderedAccounts = $derived(
+		KIND_GROUPS.flatMap((g) => visibleAccounts.filter((a) => g.kinds.includes(data.kindOf(a.id))))
 	);
+
+	/** Primeiro nome a partir do e-mail ("maria.silva@..." → "Maria"). */
+	const firstName = $derived.by(() => {
+		const local = cloud.user?.email?.split('@')[0] ?? '';
+		const first = local.split(/[._\-+0-9]/).find(Boolean) ?? '';
+		return first ? first[0].toUpperCase() + first.slice(1).toLowerCase() : '';
+	});
 
 	/** Recorrências que vencem nas próximas duas semanas. */
 	const upcoming = $derived(
@@ -92,138 +117,167 @@
 	})();
 </script>
 
-<div class="page pt-safe">
+{#snippet topBar()}
 	<div class="top">
-		<span class="brand"><Gem size={22} strokeWidth={1.5} class="gem" />Vida Boa</span>
+		<div class="hello">
+			<span class="avatar" aria-hidden="true">{firstName ? firstName[0] : 'V'}</span>
+			<span>
+				<small>{greeting},</small>
+				<strong>{firstName || 'Vida Boa'}</strong>
+			</span>
+		</div>
 		<span class="top-actions">
-			{#if cloud.user}
-				<IconButton label={cloudLabel} href={resolve('/ajustes')}>
-					{#if cloud.status === 'syncing'}<LoaderCircle size={19} strokeWidth={1.5} class="spin" />
-					{:else if cloud.status === 'offline'}<CloudOff size={19} strokeWidth={1.5} />
-					{:else if cloud.status === 'error'}<TriangleAlert
-							size={19}
-							strokeWidth={1.5}
-							class="warn"
-						/>
-					{:else}<CloudCheck size={19} strokeWidth={1.5} />{/if}
-				</IconButton>
-			{/if}
 			<IconButton
+				tone="hi"
 				label={ui.privacy ? 'Mostrar valores' : 'Ocultar valores'}
 				onclick={togglePrivacy}
 			>
-				{#if ui.privacy}<EyeOff size={20} strokeWidth={1.5} />{:else}<Eye
+				{#if ui.privacy}<EyeOff size={20} strokeWidth={1.8} />{:else}<Eye
 						size={20}
-						strokeWidth={1.5}
+						strokeWidth={1.8}
 					/>{/if}
 			</IconButton>
+			{#if cloud.user}
+				<IconButton tone="strong" label={cloudLabel} href={resolve('/ajustes')}>
+					{#if cloud.status === 'syncing'}<LoaderCircle size={20} strokeWidth={1.8} class="spin" />
+					{:else if cloud.status === 'offline'}<CloudOff size={20} strokeWidth={1.8} />
+					{:else if cloud.status === 'error'}<TriangleAlert size={20} strokeWidth={1.8} />
+					{:else}<CloudCheck size={20} strokeWidth={1.8} />{/if}
+				</IconButton>
+			{/if}
 		</span>
 	</div>
+{/snippet}
 
+<div class="page pt-safe" class:wide={data.accounts.length > 0}>
 	{#if data.ready && data.accounts.length === 0}
+		{@render topBar()}
 		<section class="welcome">
-			<p class="greet">{greeting}.</p>
 			<h1>Tudo o que é seu, num só lugar.</h1>
 			<p class="lead">
 				Cadastre suas contas e cartões, importe os extratos do banco e veja seu patrimônio tomar
-				forma. Os dados ficam só neste aparelho.
+				forma.
 			</p>
 			<div class="cta">
 				<Button size="lg" onclick={() => (newAccountOpen = true)}>Cadastrar primeira conta</Button>
 				<Button size="lg" variant="secondary" href={resolve('/importar')}
-					><FileUp size={18} strokeWidth={1.6} />Importar extrato</Button
+					><FileUp size={18} strokeWidth={1.8} />Importar extrato</Button
 				>
 			</div>
 		</section>
 	{:else if data.ready}
-		<section class="hero">
-			<p class="label">Patrimônio</p>
-			<Amount cents={netWorth} size="xl" tone="auto" />
-			<p class="delta">
-				<Trend cents={monthDelta}>{monthDelta === 0 ? 'sem variação no mês' : 'neste mês'}</Trend>
-			</p>
-			<div class="chart"><LineChart points={series} /></div>
-		</section>
+		<div class="dash">
+			<div class="side">
+				{@render topBar()}
+				<section class="hero">
+					<p class="label">Patrimônio</p>
+					<Amount cents={netWorth} size="xl" tone="auto" />
+					<p class="delta">
+						<Trend cents={monthDelta}
+							>{monthDelta === 0 ? 'sem variação no mês' : 'neste mês'}</Trend
+						>
+					</p>
+				</section>
+				<section class="quick" aria-label="Atalhos">
+					<button type="button" onclick={() => openEditor({ defaults: { kind: 'expense' } })}>
+						<span class="q-ico"><Plus size={22} strokeWidth={1.8} /></span>Lançar
+					</button>
+					<a href={resolve('/importar')}>
+						<span class="q-ico"><ArrowDown size={22} strokeWidth={1.8} /></span>Importar
+					</a>
+					<button type="button" onclick={() => openEditor({ defaults: { kind: 'transfer' } })}>
+						<span class="q-ico"><ArrowUpRight size={22} strokeWidth={1.8} /></span>Transferir
+					</button>
+				</section>
+				<section class="month">
+					<a href={resolve('/relatorios')} class="cell">
+						<FlowFigure kind="in" cents={month.incomeCents} label="Entradas no mês" />
+					</a>
+					<a href={resolve('/relatorios')} class="cell">
+						<FlowFigure kind="out" cents={month.expenseCents} label="Saídas no mês" />
+					</a>
+				</section>
+			</div>
+			<div class="col">
+				<section class="chart">
+					<LineChart points={series} height={wide.current ? 320 : 200} />
+					<div class="ranges">
+						<Segmented options={RANGES} bind:value={range} label="Período do gráfico" />
+					</div>
+				</section>
 
-		<section class="month">
-			<a href={resolve('/relatorios')} class="cell">
-				<FlowFigure kind="in" cents={month.incomeCents} label="Entradas no mês" />
-			</a>
-			<a href={resolve('/relatorios')} class="cell">
-				<FlowFigure kind="out" cents={month.expenseCents} label="Saídas no mês" />
-			</a>
-		</section>
+				<section class="block">
+					<header>
+						<h2>Suas contas</h2>
+						<a href={resolve('/contas')} class="link">Gerenciar</a>
+					</header>
+					<!-- Carrossel de cartões: a primeira conta em destaque, como um cartão físico. -->
+					<ul class="cards no-scrollbar" use:dragScroll>
+						{#each orderedAccounts as a, i (a.id)}
+							{@const Icon = ACCOUNT_KIND_ICON[data.kindOf(a.id)]}
+							<li>
+								<a class="card" class:first={i === 0} href={resolve('/contas/[id]', { id: a.id })}>
+									<span class="card-top">
+										<strong>{a.name}</strong>
+										<span class="card-ico"><Icon size={20} strokeWidth={1.8} /></span>
+									</span>
+									<span class="card-bottom">
+										<small>{a.institution || 'Saldo'}</small>
+										<Amount cents={data.balances.get(a.id) ?? 0} size="lg" tone="debt" />
+									</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</section>
 
-		{#each groups as group (group.label)}
-			<section class="block">
-				<header>
-					<h2>{group.label}</h2>
-					<a href={resolve('/contas')} class="link">Gerenciar</a>
-				</header>
-				<ul>
-					{#each group.accounts as a (a.id)}
-						{@const Icon = ACCOUNT_KIND_ICON[data.kindOf(a.id)]}
-						<li>
-							<a class="row account" href={resolve('/contas/[id]', { id: a.id })}>
-								<span class="acct-ico tinted" style:--c={a.color}
-									><Icon size={18} strokeWidth={1.6} /></span
-								>
-								<span class="main">
-									<span>{a.name}</span>
-									{#if a.institution}<small>{a.institution}</small>{/if}
-								</span>
-								<Amount cents={data.balances.get(a.id) ?? 0} size="sm" tone="debt" />
-								<ChevronRight size={16} strokeWidth={1.5} class="chev" />
-							</a>
-						</li>
-					{/each}
-				</ul>
-			</section>
-		{/each}
+				{#if upcoming.length}
+					<section class="block">
+						<header>
+							<h2>Próximos lançamentos</h2>
+							<a href={resolve('/recorrentes')} class="link">Recorrentes</a>
+						</header>
+						<ul>
+							{#each upcoming as u (u.rule.id + u.date)}
+								<li class="row">
+									<CategoryMark
+										category={u.rule.categoryId
+											? data.categoryById.get(u.rule.categoryId)
+											: undefined}
+									/>
+									<span class="main">
+										<span class="title">{u.rule.description}</span>
+										<small>{u.date === now ? 'Hoje' : formatDayShort(u.date)}</small>
+									</span>
+									<Amount
+										cents={u.rule.kind === 'expense' ? -u.rule.amountCents : u.rule.amountCents}
+										size="sm"
+										signed
+										tone="auto"
+									/>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
 
-		{#if upcoming.length}
-			<section class="block">
-				<header>
-					<h2>Próximos lançamentos</h2>
-					<a href={resolve('/recorrentes')} class="link">Recorrentes</a>
-				</header>
-				<ul>
-					{#each upcoming as u (u.rule.id + u.date)}
-						<li class="row">
-							<CategoryMark
-								category={u.rule.categoryId ? data.categoryById.get(u.rule.categoryId) : undefined}
-							/>
-							<span class="main">
-								<span>{u.rule.description}</span>
-								<small>{u.date === now ? 'Hoje' : formatDayShort(u.date)}</small>
-							</span>
-							<Amount
-								cents={u.rule.kind === 'expense' ? -u.rule.amountCents : u.rule.amountCents}
-								size="sm"
-								signed
-								tone="auto"
-							/>
-						</li>
-					{/each}
-				</ul>
-			</section>
-		{/if}
-
-		<section class="block">
-			<header>
-				<h2>Últimos lançamentos</h2>
-				<a href={resolve('/extrato')} class="link">Ver extrato</a>
-			</header>
-			{#if recent.length}
-				<div>
-					{#each recent as t (t.id)}<TransactionRow transaction={t} />{/each}
-				</div>
-			{:else}
-				<p class="muted">
-					Nenhum lançamento ainda. Use o botão + para lançar ou importar um extrato.
-				</p>
-			{/if}
-		</section>
+				<section class="block">
+					<header>
+						<h2>Últimos lançamentos</h2>
+						<a href={resolve('/extrato')} class="link">Ver tudo</a>
+					</header>
+					{#if recent.length}
+						<div>
+							{#each recent as t (t.id)}<TransactionRow transaction={t} />{/each}
+						</div>
+					{:else}
+						<p class="muted">
+							Nenhum lançamento ainda. Use o botão + para lançar ou importar um extrato.
+						</p>
+					{/if}
+				</section>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -233,80 +287,148 @@
 	.page {
 		padding-inline: 20px;
 	}
+	/* Celular: uma coluna só, com o gráfico logo abaixo do patrimônio. */
+	.dash {
+		display: flex;
+		flex-direction: column;
+	}
+	.side,
+	.col {
+		display: contents;
+	}
+	.dash :global(.top) {
+		order: 0;
+	}
+	.hero {
+		order: 1;
+	}
+	.chart {
+		order: 2;
+	}
+	.quick {
+		order: 3;
+	}
+	.month {
+		order: 4;
+	}
+	.block {
+		order: 5;
+	}
 	.top {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		min-height: 56px;
-		margin-right: -8px;
+		min-height: 72px;
 	}
-	.brand {
-		display: inline-flex;
+	.hello {
+		display: flex;
 		align-items: center;
-		gap: 10px;
-		font-family: var(--font-serif);
-		font-style: italic;
-		font-weight: 330;
-		font-size: 23px;
-		font-variation-settings: 'opsz' 144;
-		letter-spacing: -0.005em;
+		gap: 12px;
 	}
-	.brand :global(.gem) {
-		color: var(--brass);
+	.avatar {
+		display: grid;
+		place-items: center;
+		width: 46px;
+		height: 46px;
+		border-radius: 999px;
+		background: var(--surface);
+		box-shadow: 0 0 0 1px var(--rule);
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 20px;
+		color: var(--accent);
 	}
+	.hello small {
+		display: block;
+		font-size: 14px;
+		color: var(--ink-2);
+		line-height: 1.2;
+	}
+	.hello strong {
+		display: block;
+		font-size: 20px;
+		font-weight: 700;
+		color: var(--accent);
+		line-height: 1.2;
+	}
+	/* Par de botões redondos encostados, como nas referências. */
 	.top-actions {
 		display: flex;
 		align-items: center;
-		color: var(--ink-2);
+	}
+	.top-actions :global(.icon-btn + .icon-btn) {
+		margin-left: -6px;
+		box-shadow: 0 0 0 3px var(--paper);
 	}
 	.top-actions :global(.spin) {
 		animation: spin 900ms linear infinite;
-	}
-	.top-actions :global(.warn) {
-		color: var(--loss);
 	}
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
 		}
 	}
-	/* Em telas largas a marca já está no trilho lateral. */
-	@media (min-width: 900px) {
-		.brand {
-			visibility: hidden;
-		}
+	.hero {
+		padding: 36px 0 4px;
+		text-align: center;
 	}
 	.label {
 		font-size: 13px;
+		font-weight: 500;
 		color: var(--ink-2);
-	}
-	.hero {
-		padding: 28px 0 8px;
-	}
-	.hero .label {
 		margin-bottom: 10px;
 	}
 	.delta {
-		margin-top: 14px;
+		margin-top: 16px;
 	}
 	.chart {
-		margin-top: 22px;
+		margin: 18px -20px 0;
+	}
+	.chart :global(.caption) {
+		padding-inline: 20px;
+	}
+	.ranges {
+		width: min(280px, 100%);
+		margin: 14px auto 0;
+	}
+	.quick {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 10px;
+		margin-top: 28px;
+	}
+	.quick > * {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.q-ico {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		height: 64px;
+		border-radius: 999px;
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
+		transition: transform 120ms;
+	}
+	.quick > *:active .q-ico {
+		transform: scale(0.96);
 	}
 	.month {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		margin: 28px 0 8px;
-		border-block: 1px solid var(--rule);
+		gap: 10px;
+		margin-top: 24px;
 	}
 	.cell {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		padding: 16px 0;
-	}
-	.cell + .cell {
-		padding-left: 20px;
-		border-left: 1px solid var(--rule);
+		padding: 16px;
+		border-radius: var(--radius);
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
 	}
 	.block {
 		margin-top: 36px;
@@ -315,15 +437,69 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		margin-bottom: 4px;
+		margin-bottom: 14px;
 	}
 	h2 {
-		font-size: 22px;
-		font-variation-settings: 'opsz' 48;
+		font-size: 17px;
 	}
 	.link {
 		font-size: 14px;
-		color: var(--accent);
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	/* Carrossel: cartões grandes que deslizam e param alinhados. */
+	.cards {
+		display: flex;
+		gap: 12px;
+		margin-inline: -20px;
+		padding: 2px 20px 6px;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-padding-inline: 20px;
+	}
+	.cards li {
+		flex: 0 0 min(78%, 300px);
+		scroll-snap-align: start;
+	}
+	.card {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		height: 180px;
+		padding: 20px 22px;
+		border-radius: 24px;
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
+	}
+	.card.first {
+		background: var(--hi);
+		color: var(--on-hi);
+		--ink-2: color-mix(in oklab, var(--on-hi) 70%, transparent);
+	}
+	.card-top {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 10px;
+	}
+	.card-top strong {
+		font-size: 17px;
+		font-weight: 700;
+		line-height: 1.25;
+	}
+	.card-ico {
+		opacity: 0.75;
+	}
+	.card-bottom {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.card-bottom small {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--ink-2);
 	}
 	.main {
 		flex: 1;
@@ -331,38 +507,24 @@
 		display: flex;
 		flex-direction: column;
 	}
+	.title {
+		font-weight: 600;
+	}
 	.main small {
 		font-size: 13px;
 		color: var(--ink-2);
-	}
-	.account :global(.chev) {
-		color: var(--ink-3);
-		margin-right: -4px;
-	}
-	.acct-ico {
-		display: grid;
-		place-items: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 12px;
 	}
 	.muted {
 		color: var(--ink-2);
 		padding: 12px 0;
 	}
 	.welcome {
-		padding: 48px 0 24px;
-	}
-	.greet {
-		color: var(--ink-2);
+		padding: 40px 0 24px;
 	}
 	.welcome h1 {
-		margin-top: 8px;
-		font-size: clamp(36px, 10vw, 52px);
-		font-weight: 300;
-		font-variation-settings: 'opsz' 144;
-		letter-spacing: -0.03em;
-		max-width: 12ch;
+		font-size: clamp(38px, 11vw, 54px);
+		color: var(--accent);
+		max-width: 11ch;
 	}
 	.lead {
 		margin-top: 18px;
@@ -377,5 +539,65 @@
 		gap: 10px;
 		margin-top: 32px;
 		max-width: 360px;
+	}
+
+	/*
+	 * Telas largas, como na referência: painel claro à esquerda com saldo, atalhos e o mês;
+	 * à direita o gráfico grande (com os botões do topo no canto) e as listas.
+	 */
+	@media (min-width: 1100px) {
+		.page.wide {
+			padding-inline: 0;
+		}
+		.dash {
+			position: relative;
+			display: grid;
+			grid-template-columns: 360px minmax(0, 1fr);
+			gap: 24px;
+			align-items: start;
+		}
+		.side,
+		.col {
+			display: block;
+		}
+		.side {
+			position: sticky;
+			top: 24px;
+			padding: 12px 24px 24px;
+			border-radius: 28px;
+			background: var(--surface);
+			box-shadow: var(--shadow-card);
+		}
+		.side :global(.amount-xl) {
+			font-size: 52px;
+		}
+		.side .q-ico,
+		.side .cell {
+			background: var(--paper);
+			box-shadow: none;
+		}
+		.side .month {
+			grid-template-columns: 1fr;
+		}
+		.top-actions {
+			position: absolute;
+			top: 18px;
+			right: 18px;
+			z-index: 2;
+		}
+		.top-actions :global(.icon-btn + .icon-btn) {
+			box-shadow: 0 0 0 3px var(--surface);
+		}
+		.chart {
+			margin: 0;
+			padding: 70px 0 20px;
+			border-radius: 28px;
+			overflow: hidden;
+			background: var(--surface);
+			box-shadow: var(--shadow-card);
+		}
+		.col .block {
+			margin-top: 32px;
+		}
 	}
 </style>

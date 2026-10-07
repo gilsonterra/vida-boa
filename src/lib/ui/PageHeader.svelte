@@ -17,25 +17,24 @@
 	<div class="bar">
 		{#if back}
 			<a href={back.href} class="back"><ChevronLeft size={20} strokeWidth={1.75} />{back.label}</a>
-		{:else}
-			<span></span>
 		{/if}
+	</div>
+	<div class="title">
+		<h1>{title}</h1>
 		{#if actions}<div class="actions">{@render actions()}</div>{/if}
 	</div>
-	<h1>{title}</h1>
 	{#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
 </header>
 
 <style>
 	header {
 		padding-inline: 20px;
-		margin-bottom: 20px;
+		margin-bottom: 24px;
 	}
 	.bar {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		min-height: 52px;
+		min-height: 44px;
 	}
 	.back {
 		display: inline-flex;
@@ -43,22 +42,30 @@
 		gap: 2px;
 		margin-left: -6px;
 		padding: 6px;
-		color: var(--accent);
+		color: var(--ink-2);
 		font-size: 15px;
+		font-weight: 500;
+	}
+	/* Título em pixel à esquerda e os botões redondos à direita, na mesma linha. */
+	.title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		min-height: 52px;
 	}
 	.actions {
 		display: flex;
+		align-items: center;
 		gap: 4px;
-		margin-right: -8px;
+		margin-right: -4px;
 	}
 	h1 {
-		font-size: 36px;
-		font-weight: 350;
-		font-variation-settings: 'opsz' 96;
-		letter-spacing: -0.02em;
+		font-size: 38px;
+		color: var(--accent);
 	}
 	.subtitle {
-		margin-top: 6px;
+		margin-top: 8px;
 		color: var(--ink-2);
 		max-width: 46ch;
 	}

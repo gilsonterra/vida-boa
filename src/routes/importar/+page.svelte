@@ -434,7 +434,7 @@
 		max-width: 60ch;
 	}
 	.file .fname {
-		font-family: var(--font-serif);
+		font-family: var(--font-display);
 		font-size: 20px;
 		word-break: break-all;
 	}
@@ -568,7 +568,6 @@
 		margin-top: 22px;
 		font-size: 30px;
 		font-weight: 350;
-		font-variation-settings: 'opsz' 96;
 		max-width: 18ch;
 	}
 	.done > p {

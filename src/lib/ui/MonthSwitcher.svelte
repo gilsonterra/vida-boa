@@ -33,9 +33,8 @@
 		gap: 8px;
 	}
 	.label {
-		font-family: var(--font-serif);
+		font-family: var(--font-display);
 		font-size: 19px;
-		font-variation-settings: 'opsz' 36;
 	}
 	button {
 		display: grid;

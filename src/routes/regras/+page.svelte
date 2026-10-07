@@ -152,7 +152,7 @@
 	subtitle="Quando a descrição de um lançamento casa com uma regra, ele já chega categorizado na importação."
 >
 	{#snippet actions()}
-		<IconButton label="Nova regra" onclick={() => edit(null)}
+		<IconButton tone="hi" label="Nova regra" onclick={() => edit(null)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
 	{/snippet}

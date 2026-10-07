@@ -2,18 +2,14 @@
 
 /* Fontes locais (só o subconjunto latino), para o app funcionar offline. */
 @font-face {
-	font-family: 'Fraunces';
+	font-family: 'Jersey 15';
 	font-style: normal;
+	/* Um só peso: declarado para toda a faixa, o navegador não inventa um negrito borrado. */
 	font-weight: 100 900;
 	font-display: swap;
-	src: url('../lib/assets/fonts/fraunces-latin-opsz-normal.woff2') format('woff2-variations');
-}
-@font-face {
-	font-family: 'Fraunces';
-	font-style: italic;
-	font-weight: 100 900;
-	font-display: swap;
-	src: url('../lib/assets/fonts/fraunces-latin-opsz-italic.woff2') format('woff2-variations');
+	/* A Jersey é miúda para o corpo: ampliada aqui, vale para todos os tamanhos do app. */
+	size-adjust: 128%;
+	src: url('../lib/assets/fonts/jersey15-latin.woff2') format('woff2');
 }
 @font-face {
 	font-family: 'Inter';
@@ -24,113 +20,138 @@
 }
 
 /*
- * Paletas com nomes de deuses gregos. Cada uma define só as cores primitivas para o modo
- * claro (--l-*) e escuro (--d-*); tons de texto, divisórias e fundos suaves são derivados
- * com color-mix. A paleta vem de data-palette no <html> (ou num elemento, para prévias);
- * Deméter (verde) é a padrão.
+ * Paletas com nomes de deuses gregos. Cada uma define as cores primitivas para o modo claro
+ * (--l-*) e escuro (--d-*): fundo claro tingido, cartões quase brancos, tinta escura do mesmo
+ * tom, um acento escuro (botões cheios), um tom médio (--brass: pílula ativa, marcadores) e um
+ * destaque vivo (--hi: o cartão e o botão em evidência). O resto é derivado com color-mix.
+ * A paleta vem de data-palette no <html> (ou num elemento, para prévias); Deméter é a padrão.
  */
 
 :root,
 [data-palette='demeter'] {
-	--l-paper: #f2eee4;
-	--l-surface: #fbf8f1;
-	--l-sunken: #e9e3d6;
-	--l-ink: #17231c;
-	--l-accent: #1f4d3a;
-	--l-on-accent: #f6f2e8;
-	--l-brass: #a8874a;
-	--d-paper: #0f1612;
-	--d-surface: #16201a;
-	--d-sunken: #0b110d;
-	--d-ink: #ece6d8;
-	--d-accent: #9cc4ad;
-	--d-on-accent: #0f1612;
-	--d-brass: #c9a96e;
+	--l-paper: #edf2e8;
+	--l-surface: #fafcf7;
+	--l-sunken: #e1e9da;
+	--l-ink: #0f3a1c;
+	--l-accent: #14481f;
+	--l-on-accent: #f1f8eb;
+	--l-brass: #3f8f22;
+	--l-hi: #b8e35a;
+	--l-on-hi: #0f3a1c;
+	--d-paper: #0b140d;
+	--d-surface: #142016;
+	--d-sunken: #070e09;
+	--d-ink: #e5f1dd;
+	--d-accent: #b8e35a;
+	--d-on-accent: #0b140d;
+	--d-brass: #6cc243;
+	--d-hi: #b8e35a;
+	--d-on-hi: #0b140d;
 }
 
 [data-palette='afrodite'] {
-	--l-paper: #f6efed;
-	--l-surface: #fdf9f8;
-	--l-sunken: #eee2df;
-	--l-ink: #2a1a20;
-	--l-accent: #9b3f5c;
-	--l-on-accent: #fdf6f4;
-	--l-brass: #b0876a;
-	--d-paper: #171012;
-	--d-surface: #21171b;
-	--d-sunken: #110b0d;
-	--d-ink: #f1e6e8;
-	--d-accent: #e7a3b8;
-	--d-on-accent: #171012;
-	--d-brass: #d8ae92;
+	--l-paper: #f6edf0;
+	--l-surface: #fffafb;
+	--l-sunken: #eedee3;
+	--l-ink: #4a1027;
+	--l-accent: #6e1736;
+	--l-on-accent: #fbf0f4;
+	--l-brass: #c93a6c;
+	--l-hi: #ffadc6;
+	--l-on-hi: #4a1027;
+	--d-paper: #170c10;
+	--d-surface: #22131a;
+	--d-sunken: #10080b;
+	--d-ink: #f8e6ec;
+	--d-accent: #ffadc6;
+	--d-on-accent: #170c10;
+	--d-brass: #f06a98;
+	--d-hi: #ffadc6;
+	--d-on-hi: #170c10;
 }
 
 [data-palette='poseidon'] {
-	--l-paper: #eef1f1;
-	--l-surface: #f9fbfb;
-	--l-sunken: #e0e6e8;
-	--l-ink: #14212c;
-	--l-accent: #1f4868;
-	--l-on-accent: #f2f6f8;
-	--l-brass: #a8874a;
-	--d-paper: #0e141a;
-	--d-surface: #151d26;
-	--d-sunken: #0a0f14;
-	--d-ink: #e6ebee;
-	--d-accent: #9dc0dd;
-	--d-on-accent: #0e141a;
-	--d-brass: #c9a96e;
+	--l-paper: #eaf0f5;
+	--l-surface: #fafcfe;
+	--l-sunken: #dde6ee;
+	--l-ink: #0d2a4a;
+	--l-accent: #123a66;
+	--l-on-accent: #eef5fc;
+	--l-brass: #2a73c4;
+	--l-hi: #94d5ff;
+	--l-on-hi: #0d2a4a;
+	--d-paper: #0a111a;
+	--d-surface: #121c28;
+	--d-sunken: #070c12;
+	--d-ink: #e2eef8;
+	--d-accent: #94d5ff;
+	--d-on-accent: #0a111a;
+	--d-brass: #4a9bea;
+	--d-hi: #94d5ff;
+	--d-on-hi: #0a111a;
 }
 
 [data-palette='dionisio'] {
-	--l-paper: #f1eef2;
-	--l-surface: #faf8fb;
-	--l-sunken: #e5dfe8;
-	--l-ink: #221a28;
-	--l-accent: #553069;
-	--l-on-accent: #f6f1f8;
-	--l-brass: #a8874a;
-	--d-paper: #130f17;
-	--d-surface: #1c1622;
-	--d-sunken: #0e0b11;
-	--d-ink: #ece6ef;
-	--d-accent: #c3a6d8;
-	--d-on-accent: #130f17;
-	--d-brass: #c9a96e;
+	--l-paper: #f0ecf6;
+	--l-surface: #fcfaff;
+	--l-sunken: #e5deef;
+	--l-ink: #2c1450;
+	--l-accent: #3d1c6e;
+	--l-on-accent: #f4effc;
+	--l-brass: #7146cc;
+	--l-hi: #cdb6ff;
+	--l-on-hi: #2c1450;
+	--d-paper: #110c18;
+	--d-surface: #1b1425;
+	--d-sunken: #0b0810;
+	--d-ink: #eee6fa;
+	--d-accent: #cdb6ff;
+	--d-on-accent: #110c18;
+	--d-brass: #9670ea;
+	--d-hi: #cdb6ff;
+	--d-on-hi: #110c18;
 }
 
 [data-palette='hestia'] {
-	--l-paper: #f3eee6;
-	--l-surface: #fbf8f3;
-	--l-sunken: #e8e0d3;
-	--l-ink: #2a1f18;
-	--l-accent: #6b4630;
-	--l-on-accent: #f8f2ea;
-	--l-brass: #a8874a;
-	--d-paper: #15110e;
-	--d-surface: #1f1915;
-	--d-sunken: #0f0c0a;
-	--d-ink: #eee6dc;
-	--d-accent: #d6b49a;
-	--d-on-accent: #15110e;
-	--d-brass: #c9a96e;
+	--l-paper: #f3eee7;
+	--l-surface: #fdfaf6;
+	--l-sunken: #e9e0d4;
+	--l-ink: #3a2212;
+	--l-accent: #4e2e18;
+	--l-on-accent: #fbf4ec;
+	--l-brass: #9a5a28;
+	--l-hi: #f2c792;
+	--l-on-hi: #3a2212;
+	--d-paper: #140f0b;
+	--d-surface: #1f1813;
+	--d-sunken: #0d0907;
+	--d-ink: #f5ebdf;
+	--d-accent: #f2c792;
+	--d-on-accent: #140f0b;
+	--d-brass: #c98447;
+	--d-hi: #f2c792;
+	--d-on-hi: #140f0b;
 }
 
 [data-palette='apolo'] {
-	--l-paper: #f6f0e7;
-	--l-surface: #fdf9f3;
-	--l-sunken: #ede2d3;
-	--l-ink: #2a1d14;
-	--l-accent: #b0541f;
-	--l-on-accent: #fdf6ee;
-	--l-brass: #a8874a;
-	--d-paper: #16110c;
-	--d-surface: #211912;
-	--d-sunken: #100c08;
-	--d-ink: #f1e8dc;
-	--d-accent: #f0a874;
-	--d-on-accent: #16110c;
-	--d-brass: #d9b36e;
+	--l-paper: #f7efe8;
+	--l-surface: #fffbf7;
+	--l-sunken: #efe1d3;
+	--l-ink: #4a1f06;
+	--l-accent: #6b2c08;
+	--l-on-accent: #fff4ea;
+	--l-brass: #d0601a;
+	--l-hi: #ffb56e;
+	--l-on-hi: #4a1f06;
+	--d-paper: #160e09;
+	--d-surface: #221710;
+	--d-sunken: #0e0906;
+	--d-ink: #faebdd;
+	--d-accent: #ffb56e;
+	--d-on-accent: #160e09;
+	--d-brass: #f08a42;
+	--d-hi: #ffb56e;
+	--d-on-hi: #160e09;
 }
 
 :root {
@@ -141,10 +162,14 @@
 	--accent: var(--l-accent);
 	--on-accent: var(--l-on-accent);
 	--brass: var(--l-brass);
+	--hi: var(--l-hi);
+	/* Botão escuro do par em destaque; no modo escuro vira o tom médio, para não sumir no lima. */
+	--strong: var(--accent);
+	--on-hi: var(--l-on-hi);
 	--danger: #8c3b2e;
 	/* Ganho e perda: fixos em todas as paletas, para não confundir com o acento. */
-	--gain: #1d7a50;
-	--loss: #b3373d;
+	--gain: #1f8a3b;
+	--loss: #c8352f;
 	--shade: rgb(0 0 0 / 0.18);
 	/* Quanto da tinta entra na cor dos ícones: 0 no claro, mais no escuro para dar contraste. */
 	--mark-ink: 0%;
@@ -160,7 +185,10 @@
 	--loss-soft: color-mix(in oklab, var(--loss) 12%, transparent);
 	--danger-soft: color-mix(in oklab, var(--danger) 10%, transparent);
 	--scrim: color-mix(in oklab, var(--ink) 34%, transparent);
-	--shadow-sheet: 0 -1px 0 var(--rule), 0 -18px 48px -12px var(--shade);
+	--shadow-sheet: 0 -18px 48px -12px var(--shade);
+	/* Sombra quase imperceptível dos cartões: separam do fundo sem borda. */
+	--shadow-card: 0 1px 2px color-mix(in oklab, var(--ink) 5%, transparent);
+	--radius: 20px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -172,8 +200,15 @@
 		--accent: var(--d-accent);
 		--on-accent: var(--d-on-accent);
 		--brass: var(--d-brass);
+		--hi: var(--d-hi);
+		--strong: var(--d-brass);
+		--on-hi: var(--d-on-hi);
+		--hi: var(--d-hi);
+		--strong: var(--d-brass);
+		--strong: var(--d-brass);
+		--on-hi: var(--d-on-hi);
 		--danger: #e09482;
-		--gain: #74d3a3;
+		--gain: #8fdc6a;
 		--loss: #f3918b;
 		--shade: rgb(0 0 0 / 0.6);
 		--scrim: rgb(0 0 0 / 0.5);
@@ -190,8 +225,11 @@
 	--accent: var(--d-accent);
 	--on-accent: var(--d-on-accent);
 	--brass: var(--d-brass);
+	--hi: var(--d-hi);
+	--strong: var(--d-brass);
+	--on-hi: var(--d-on-hi);
 	--danger: #e09482;
-	--gain: #74d3a3;
+	--gain: #8fdc6a;
 	--loss: #f3918b;
 	--shade: rgb(0 0 0 / 0.6);
 	--scrim: rgb(0 0 0 / 0.5);
@@ -212,12 +250,13 @@
 	--color-accent-soft: var(--accent-soft);
 	--color-on-accent: var(--on-accent);
 	--color-brass: var(--brass);
+	--color-hi: var(--hi);
 	--color-positive: var(--positive);
 	--color-gain: var(--gain);
 	--color-loss: var(--loss);
 	--color-danger: var(--danger);
 	--color-danger-soft: var(--danger-soft);
-	--font-serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+	--font-display: 'Jersey 15', ui-monospace, 'SF Mono', monospace;
 	--font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -242,20 +281,24 @@
 		min-height: 100dvh;
 	}
 
-	h1,
+	/* Títulos de tela em pixel, como nas referências; seções na grotesca, discretas. */
+	h1 {
+		font-family: var(--font-display);
+		font-weight: 700;
+		letter-spacing: 0;
+		line-height: 1.05;
+	}
 	h2,
 	h3 {
-		font-family: var(--font-serif);
-		font-optical-sizing: auto;
-		font-weight: 400;
+		font-weight: 600;
 		letter-spacing: -0.01em;
-		line-height: 1.15;
+		line-height: 1.2;
 	}
 
 	:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
-		border-radius: 6px;
+		border-radius: 8px;
 	}
 
 	button {
@@ -276,11 +319,10 @@
 }
 
 @layer utilities {
-	/* Algarismos tabulares em serifa: a marca visual do app. */
+	/* Algarismos em pixel: a marca visual do app. */
 	.figures {
-		font-family: var(--font-serif);
-		font-optical-sizing: auto;
-		font-variant-numeric: lining-nums tabular-nums;
+		font-family: var(--font-display);
+		font-variant-numeric: tabular-nums;
 	}
 	.tabular {
 		font-variant-numeric: tabular-nums;
@@ -340,8 +382,8 @@
 		min-height: 48px;
 		padding: 12px 14px;
 		background: var(--surface);
-		border: 1px solid var(--rule-strong);
-		border-radius: 12px;
+		border: 1px solid var(--rule);
+		border-radius: 16px;
 		transition: border-color 120ms;
 		appearance: none;
 	}
@@ -365,21 +407,37 @@
 		font-size: 13px;
 		color: var(--ink-2);
 	}
-	/* Linha de lista com filete fino, sem cartões: o ritmo vem do espaçamento. */
+	/* Cada item de lista é um cartão claro e arredondado, solto do vizinho. */
 	.row {
 		display: flex;
 		align-items: center;
 		gap: 14px;
-		min-height: 60px;
-		padding: 10px 0;
-		border-bottom: 1px solid var(--rule);
-	}
-	.row:last-child {
-		border-bottom: 0;
+		min-height: 68px;
+		padding: 12px 16px;
+		/* Sempre, inclusive no último: muitas linhas ficam dentro de <li>, onde :last-child não serve. */
+		margin-bottom: 8px;
+		background: var(--surface);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow-card);
 	}
 	.panel {
 		background: var(--surface);
-		border: 1px solid var(--rule);
-		border-radius: 20px;
+		border-radius: var(--radius);
+		box-shadow: var(--shadow-card);
+	}
+	/* Etiqueta curta (estado, recorrência): a destacada usa o tom vivo da paleta. */
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		height: 24px;
+		padding: 0 9px;
+		border-radius: 7px;
+		font-size: 12px;
+		font-weight: 500;
+		background: var(--sunken);
+		color: var(--ink);
+	}
+	.chip.on {
+		background: color-mix(in oklab, var(--hi) 55%, var(--surface));
 	}
 }

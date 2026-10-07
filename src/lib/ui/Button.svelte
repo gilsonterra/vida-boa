@@ -37,8 +37,8 @@
 		justify-content: center;
 		gap: 8px;
 		border-radius: 999px;
-		font-weight: 500;
-		letter-spacing: 0.005em;
+		font-weight: 600;
+		letter-spacing: -0.005em;
 		transition:
 			transform 120ms,
 			background-color 120ms,
@@ -77,9 +77,9 @@
 		color: var(--on-accent);
 	}
 	.secondary {
-		background: transparent;
+		background: var(--surface);
 		color: var(--ink);
-		box-shadow: inset 0 0 0 1px var(--rule-strong);
+		box-shadow: var(--shadow-card);
 	}
 	.ghost {
 		background: transparent;

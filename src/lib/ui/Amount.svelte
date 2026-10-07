@@ -6,7 +6,7 @@
 	import { ui } from '../stores/ui.svelte';
 
 	/**
-	 * Valor monetário com a assinatura visual do app: algarismos em serifa,
+	 * Valor monetário com a assinatura visual do app: algarismos em pixel,
 	 * símbolo e centavos menores, como num extrato de banco privado.
 	 *
 	 * Tom: `auto` pinta ganhos de verde e perdas de vermelho; `debt` só destaca saldo negativo;
@@ -80,17 +80,15 @@
 <style>
 	.amount {
 		white-space: nowrap;
-		letter-spacing: -0.01em;
 	}
 	.cur {
-		font-size: 0.62em;
-		margin-right: 0.18em;
-		opacity: 0.6;
-		letter-spacing: 0;
+		font-size: 0.7em;
+		margin-right: 0.2em;
+		opacity: 0.7;
 	}
 	.dec {
-		font-size: 0.62em;
-		opacity: 0.72;
+		font-size: 0.66em;
+		opacity: 0.75;
 	}
 	.gain {
 		color: var(--gain);
@@ -107,40 +105,48 @@
 		fill: currentColor;
 	}
 	.amount-xl .tri {
-		width: 0.22em;
-		height: 0.22em;
-		vertical-align: 0.6em;
+		width: 0.26em;
+		height: 0.26em;
+		vertical-align: 0.5em;
+	}
+	/* Valores de lista na grotesca, em negrito; o pixel fica para os números em destaque. */
+	.amount-sm,
+	.amount-md {
+		font-family: var(--font-sans);
+		font-weight: 600;
+		letter-spacing: -0.01em;
 	}
 	.amount-sm {
 		font-size: 15px;
-		font-weight: 450;
 	}
 	.amount-md {
-		font-size: 19px;
-		font-weight: 420;
+		font-size: 18px;
 	}
 	.amount-lg {
 		font-size: 30px;
-		font-weight: 360;
-		letter-spacing: -0.02em;
+		font-weight: 700;
 	}
-	/* O número do patrimônio: corpo grande, traço fino, tamanho óptico de display. */
+	/* O número principal: pixel grande, centavos em expoente, como nas referências. */
 	.amount-xl {
-		font-size: clamp(44px, 13vw, 64px);
-		font-weight: 280;
-		letter-spacing: -0.035em;
+		font-size: clamp(44px, 13vw, 60px);
+		font-weight: 700;
 		line-height: 1;
-		font-variation-settings: 'opsz' 144;
 	}
-	.amount-xl .cur {
-		font-size: 0.36em;
-		vertical-align: 0.95em;
-		margin-right: 0.3em;
-		font-weight: 400;
+	.amount-xl .cur,
+	.amount-lg .cur {
+		font-size: 1em;
+		margin-right: 0.28em;
+		opacity: 1;
 	}
-	.amount-xl .dec {
-		font-size: 0.4em;
-		vertical-align: 0.88em;
-		margin-left: 0.06em;
+	.amount-xl .dec,
+	.amount-lg .dec {
+		font-size: 0.32em;
+		vertical-align: 1.9em;
+		margin-left: 0.12em;
+		opacity: 1;
+	}
+	.amount-lg .dec {
+		font-size: 0.42em;
+		vertical-align: 1.2em;
 	}
 </style>

@@ -24,8 +24,9 @@
 
 	let actionsOpen = $state(false);
 
+	/** Pela rota, não pelo caminho: no roteador por hash o caminho é sempre o da raiz do app. */
 	function isActive(path: string) {
-		const current = page.url.pathname;
+		const current = page.route.id ?? '';
 		return path === '/' ? current === '/' : current.startsWith(path);
 	}
 
@@ -42,21 +43,20 @@
 		class:active={isActive(t.path)}
 		aria-current={isActive(t.path) ? 'page' : undefined}
 	>
-		<t.icon size={22} strokeWidth={isActive(t.path) ? 1.9 : 1.5} />
+		<t.icon size={20} strokeWidth={isActive(t.path) ? 2 : 1.6} />
 		<span>{t.label}</span>
 	</a>
 {/snippet}
 
-<!-- Barra inferior (celular) -->
-<nav class="tabbar pb-safe" aria-label="Principal">
-	{@render tab(tabs[0])}
-	{@render tab(tabs[1])}
+<!-- Doca inferior (celular): pílula com as abas e o botão de adicionar ao lado. -->
+<div class="dock">
+	<nav class="tabbar" aria-label="Principal">
+		{#each tabs as t (t.path)}{@render tab(t)}{/each}
+	</nav>
 	<button type="button" class="add" onclick={() => (actionsOpen = true)} aria-label="Adicionar">
-		<Plus size={24} strokeWidth={1.75} />
+		<Plus size={24} strokeWidth={2} />
 	</button>
-	{@render tab(tabs[2])}
-	{@render tab(tabs[3])}
-</nav>
+</div>
 
 <!-- Trilho lateral (telas largas) -->
 <nav class="rail" aria-label="Principal">
@@ -90,42 +90,71 @@
 </Sheet>
 
 <style>
-	.tabbar {
+	.dock {
 		view-transition-name: tabbar;
 		position: fixed;
-		inset: auto 0 0 0;
+		left: 0;
+		right: 0;
+		bottom: calc(14px + env(safe-area-inset-bottom));
 		z-index: 40;
-		display: grid;
-		grid-template-columns: repeat(5, 1fr);
+		display: flex;
+		justify-content: center;
 		align-items: center;
-		background: color-mix(in oklab, var(--paper) 86%, transparent);
-		backdrop-filter: saturate(1.4) blur(18px);
-		-webkit-backdrop-filter: saturate(1.4) blur(18px);
-		border-top: 1px solid var(--rule);
+		gap: 8px;
+		pointer-events: none;
+	}
+	.tabbar,
+	.add {
+		pointer-events: auto;
+	}
+	.tabbar {
+		display: flex;
+		gap: 2px;
+		padding: 5px;
+		border-radius: 999px;
+		background: color-mix(in oklab, var(--surface) 92%, transparent);
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		box-shadow:
+			0 0 0 1px var(--rule),
+			0 10px 30px -12px var(--shade);
 	}
 	.tab {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-		gap: 3px;
-		padding: 9px 0 7px;
-		font-size: 11px;
-		color: var(--ink-3);
-		transition: color 140ms;
+		gap: 7px;
+		height: 44px;
+		padding: 0 13px;
+		border-radius: 999px;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--ink-2);
+		transition:
+			background-color 200ms,
+			color 200ms;
 	}
-	.tab.active {
-		color: var(--accent);
+	/* Na doca, só a aba atual mostra o nome; as outras ficam no ícone (o nome segue acessível). */
+	.tabbar .tab:not(.active) span {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+	.tabbar .tab.active {
+		background: var(--brass);
+		color: var(--on-accent);
 	}
 	.add {
-		justify-self: center;
 		display: grid;
 		place-items: center;
-		width: 48px;
-		height: 48px;
+		width: 54px;
+		height: 54px;
 		border-radius: 999px;
 		background: var(--accent);
 		color: var(--on-accent);
-		box-shadow: 0 6px 18px -6px color-mix(in oklab, var(--accent) 70%, transparent);
+		box-shadow: 0 10px 24px -10px color-mix(in oklab, var(--accent) 80%, transparent);
 		transition: transform 140ms;
 	}
 	.add:active {
@@ -137,21 +166,21 @@
 	.actions {
 		display: flex;
 		flex-direction: column;
+		gap: 8px;
 	}
 	.actions button {
 		display: flex;
 		align-items: center;
 		gap: 14px;
-		padding: 14px 0;
+		padding: 14px 16px;
 		text-align: left;
-		border-bottom: 1px solid var(--rule);
-	}
-	.actions button:last-child {
-		border-bottom: 0;
+		border-radius: var(--radius);
+		background: var(--surface);
+		box-shadow: var(--shadow-card);
 	}
 	.actions strong {
 		display: block;
-		font-weight: 500;
+		font-weight: 600;
 	}
 	.actions small {
 		display: block;
@@ -163,67 +192,66 @@
 		place-items: center;
 		width: 44px;
 		height: 44px;
-		border-radius: 14px;
-		background: var(--accent-soft);
-		color: var(--accent);
+		border-radius: 999px;
+		background: var(--hi);
+		color: var(--on-hi);
 		flex-shrink: 0;
 	}
 
+	/* Telas largas: painel claro à esquerda, como nas referências. */
 	@media (min-width: 900px) {
-		.tabbar {
+		.dock {
 			display: none;
 		}
 		.rail {
 			position: fixed;
-			inset: 0 auto 0 0;
+			top: 12px;
+			bottom: 12px;
+			left: 12px;
 			width: 232px;
 			display: flex;
 			flex-direction: column;
 			gap: 28px;
-			padding: 32px 20px;
-			border-right: 1px solid var(--rule);
+			padding: 28px 16px;
+			border-radius: 28px;
+			background: var(--surface);
+			box-shadow: var(--shadow-card);
 		}
 		.brand {
 			display: flex;
 			align-items: center;
 			gap: 10px;
-			font-family: var(--font-serif);
-			font-style: italic;
-			font-weight: 330;
-			font-size: 25px;
-			font-variation-settings: 'opsz' 144;
+			font-family: var(--font-display);
+			font-weight: 700;
+			font-size: 24px;
+			color: var(--accent);
 			padding-left: 8px;
-		}
-		.brand :global(.gem) {
-			color: var(--brass);
 		}
 		.rail-add {
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			gap: 8px;
-			height: 44px;
+			height: 46px;
 			border-radius: 999px;
 			background: var(--accent);
 			color: var(--on-accent);
-			font-weight: 500;
+			font-weight: 600;
 		}
 		.rail-tabs {
 			display: flex;
 			flex-direction: column;
-			gap: 2px;
+			gap: 4px;
 		}
 		.rail-tabs .tab {
-			flex-direction: row;
 			gap: 12px;
-			padding: 10px 12px;
-			border-radius: 12px;
 			font-size: 15px;
-			color: var(--ink-2);
+			font-weight: 500;
 		}
 		.rail-tabs .tab.active {
-			color: var(--ink);
-			background: var(--accent-soft);
+			color: var(--on-hi);
+			background: var(--hi);
+			font-weight: 600;
 		}
 	}
 </style>

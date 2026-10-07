@@ -121,7 +121,7 @@
 	subtitle="Aluguel, escola, assinaturas: lançados sozinhos na data, sempre que você abrir o app."
 >
 	{#snippet actions()}
-		<IconButton label="Nova recorrência" onclick={() => edit(null)}
+		<IconButton tone="hi" label="Nova recorrência" onclick={() => edit(null)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
 	{/snippet}
