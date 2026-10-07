@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Gem } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
+	import Logo from './Logo.svelte';
 
 	/** Abertura com a marca, enquanto a sessão é verificada. */
 	const reduced =
@@ -14,7 +14,7 @@
 	aria-label="Abrindo o Vida Boa"
 >
 	<div class="mark" class:still={reduced}>
-		<span class="gem"><Gem size={44} strokeWidth={1.2} /></span>
+		<span class="emblem"><Logo size={96} /></span>
 		<span class="name">Vida Boa</span>
 		<span class="rule" aria-hidden="true"></span>
 	</div>
@@ -35,8 +35,8 @@
 		align-items: center;
 		gap: 14px;
 	}
-	.gem {
-		color: var(--brass);
+	.emblem {
+		display: flex;
 		animation: rise 700ms var(--ease-out-quint) both;
 	}
 	.name {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Eye, EyeOff, Gem, WifiOff } from '@lucide/svelte';
+	import { Eye, EyeOff, WifiOff } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import {
 		cloud,
@@ -10,6 +10,7 @@
 	} from '../stores/sync.svelte';
 	import { toast } from '../stores/ui.svelte';
 	import Button from './Button.svelte';
+	import Logo from './Logo.svelte';
 
 	/**
 	 * Tela de entrada: o app só funciona com uma conta. Também atende quem chega pelo
@@ -113,7 +114,7 @@
 <div class="screen pt-safe pb-safe">
 	<div class="column">
 		<header class="brand">
-			<span class="gem"><Gem size={30} strokeWidth={1.3} /></span>
+			<span class="emblem"><Logo size={48} /></span>
 			<span class="name">Vida Boa</span>
 		</header>
 
@@ -253,8 +254,8 @@
 		gap: 10px;
 		margin-bottom: 44px;
 	}
-	.gem {
-		color: var(--brass);
+	.emblem {
+		display: flex;
 	}
 	.name {
 		font-family: var(--font-display);
