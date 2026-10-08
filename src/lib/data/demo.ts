@@ -1,4 +1,5 @@
 import { addDays, addMonths, monthKey, today } from '../domain/dates';
+import { defaultConsolidated } from '../domain/ledger';
 import type { DataStore } from './repositories';
 
 /**
@@ -64,7 +65,8 @@ export async function loadDemoData(store: DataStore) {
 			transferId: null,
 			fitId: null,
 			importBatchId: null,
-			recurringId: null
+			recurringId: null,
+			consolidated: defaultConsolidated(date, today())
 		});
 
 	const cardSpend: Array<[string, string, number]> = [

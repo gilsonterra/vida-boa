@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { ChevronRight } from '@lucide/svelte';
 	import { store } from '#lib/data/index.ts';
 	import { loadDemoData } from '#lib/data/demo.ts';
 	import type { Backup } from '#lib/data/repositories.ts';
@@ -81,6 +82,26 @@
 	<CloudAccount />
 
 	<section>
+		<h2>Organizar</h2>
+		<ul>
+			<li>
+				<a class="row link" href={resolve('/categorias')}>
+					<span class="grow">Categorias e regras</span>
+					<span class="count tabular">{data.categories.length}</span>
+					<ChevronRight size={16} strokeWidth={1.5} />
+				</a>
+			</li>
+			<li>
+				<a class="row link" href={resolve('/importar')}>
+					<span class="grow">Importar extrato e histórico</span>
+					<span class="count tabular">{data.imports.length}</span>
+					<ChevronRight size={16} strokeWidth={1.5} />
+				</a>
+			</li>
+		</ul>
+	</section>
+
+	<section>
 		<h2>Aparência</h2>
 		<h3>Paleta</h3>
 		<PalettePicker />
@@ -152,6 +173,20 @@
 </div>
 
 <style>
+	.link {
+		min-height: 54px;
+		color: var(--ink);
+	}
+	.link :global(svg) {
+		color: var(--ink-3);
+	}
+	.grow {
+		flex: 1;
+	}
+	.count {
+		color: var(--ink-3);
+		font-size: 14px;
+	}
 	.page {
 		padding-inline: 20px;
 	}

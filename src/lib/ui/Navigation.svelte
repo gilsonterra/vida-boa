@@ -5,11 +5,11 @@
 		ArrowLeftRight,
 		ChevronDown,
 		FileUp,
-		FolderOpen,
 		House,
 		List,
 		Plus,
-		Settings2
+		Settings2,
+		Wallet
 	} from '@lucide/svelte';
 	import { openEditor } from '../stores/ui.svelte';
 	import Logo from './Logo.svelte';
@@ -29,27 +29,27 @@
 		icon: typeof House;
 		/** Telas dentro da aba: acendem a aba e viram submenu na barra do topo. */
 		subs?: Sub[];
+		/** Outras rotas que acendem a aba, sem entrar no submenu (ex.: detalhe). */
+		also?: string[];
 	}
 
 	const tabs: Tab[] = [
 		{ href: resolve('/'), path: '/', label: 'Início', icon: House },
 		{ href: resolve('/extrato'), path: '/extrato', label: 'Extrato', icon: List },
 		{
-			href: resolve('/cadastros'),
-			path: '/cadastros',
-			label: 'Cadastros',
-			icon: FolderOpen,
-			subs: [
-				{ href: resolve('/contas'), path: '/contas', label: 'Contas e cartões' },
-				{ href: resolve('/financiamentos'), path: '/financiamentos', label: 'Financiamentos' },
-				{ href: resolve('/tipos-de-conta'), path: '/tipos-de-conta', label: 'Tipos de conta' },
-				{ href: resolve('/categorias'), path: '/categorias', label: 'Categorias' },
-				{ href: resolve('/regras'), path: '/regras', label: 'Regras de categorização' },
-				{ href: resolve('/recorrentes'), path: '/recorrentes', label: 'Lançamentos recorrentes' },
-				{ href: resolve('/importacoes'), path: '/importacoes', label: 'Histórico de importações' }
-			]
+			href: resolve('/contas'),
+			path: '/contas',
+			label: 'Contas',
+			icon: Wallet,
+			also: ['/financiamentos']
 		},
-		{ href: resolve('/ajustes'), path: '/ajustes', label: 'Ajustes', icon: Settings2 }
+		{
+			href: resolve('/ajustes'),
+			path: '/ajustes',
+			label: 'Ajustes',
+			icon: Settings2,
+			also: ['/categorias', '/importar']
+		}
 	];
 
 	let actionsOpen = $state(false);
@@ -59,7 +59,8 @@
 		const current = page.route.id ?? '';
 		if (t.path === '/') return current === '/';
 		const subs = 'subs' in t ? (t.subs ?? []) : [];
-		return [t.path, ...subs.map((s) => s.path)].some((p) => current.startsWith(p));
+		const also = 'also' in t ? (t.also ?? []) : [];
+		return [t.path, ...subs.map((s) => s.path), ...also].some((p) => current.startsWith(p));
 	}
 
 	function act(fn: () => void) {

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { Plus } from '@lucide/svelte';
 	import { store } from '#lib/data/index.ts';
 	import { PALETTE } from '#lib/domain/seed.ts';
@@ -12,9 +11,13 @@
 	import { CATEGORY_ICONS } from '#lib/ui/icons.ts';
 	import PageHeader from '#lib/ui/PageHeader.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
+	import RulesSection from '#lib/ui/RulesSection.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
 
 	const data = useAppData();
+	/** Categorias e regras de categorização na mesma tela. */
+	let view = $state<'categories' | 'rules'>('categories');
+	let rules = $state<ReturnType<typeof RulesSection>>();
 	let tab = $state<CategoryKind>('expense');
 	let open = $state(false);
 	let editing = $state<Category | null>(null);
@@ -74,34 +77,55 @@
 	}
 </script>
 
-<PageHeader title="Categorias" back={{ href: resolve('/cadastros'), label: 'Cadastros' }}>
+<PageHeader title="Categorias">
 	{#snippet actions()}
-		<IconButton tone="hi" label="Nova categoria" onclick={() => edit(null)}
-			><Plus size={22} strokeWidth={1.6} /></IconButton
-		>
+		{#if view === 'categories'}
+			<IconButton tone="hi" label="Nova categoria" onclick={() => edit(null)}
+				><Plus size={22} strokeWidth={1.6} /></IconButton
+			>
+		{:else}
+			<IconButton tone="hi" label="Nova regra" onclick={() => rules?.newRule()}
+				><Plus size={22} strokeWidth={1.6} /></IconButton
+			>
+		{/if}
 	{/snippet}
 </PageHeader>
 
 <div class="page">
-	<Segmented
-		label="Tipo de categoria"
-		bind:value={tab}
-		options={[
-			{ value: 'expense', label: 'Despesas' },
-			{ value: 'income', label: 'Receitas' }
-		]}
-	/>
-	<ul class="list">
-		{#each list as c (c.id)}
-			<li>
-				<button type="button" class="row item" onclick={() => edit(c)}>
-					<CategoryMark category={c} />
-					<span class="grow">{c.name}</span>
-					<small>{usage.get(c.id) ?? ''}</small>
-				</button>
-			</li>
-		{/each}
-	</ul>
+	<div class="views">
+		<Segmented
+			label="Mostrar"
+			bind:value={view}
+			options={[
+				{ value: 'categories', label: 'Categorias' },
+				{ value: 'rules', label: `Regras (${data.rules.filter((r) => !r.isSystem).length})` }
+			]}
+		/>
+	</div>
+
+	{#if view === 'categories'}
+		<Segmented
+			label="Tipo de categoria"
+			bind:value={tab}
+			options={[
+				{ value: 'expense', label: 'Despesas' },
+				{ value: 'income', label: 'Receitas' }
+			]}
+		/>
+		<ul class="list">
+			{#each list as c (c.id)}
+				<li>
+					<button type="button" class="row item" onclick={() => edit(c)}>
+						<CategoryMark category={c} />
+						<span class="grow">{c.name}</span>
+						<small>{usage.get(c.id) ?? ''}</small>
+					</button>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<RulesSection bind:this={rules} />
+	{/if}
 </div>
 
 <Sheet bind:open title={editing ? 'Editar categoria' : 'Nova categoria'}>
@@ -170,6 +194,9 @@
 <style>
 	.page {
 		padding-inline: 20px;
+	}
+	.views {
+		margin-bottom: 18px;
 	}
 	.list {
 		margin-top: 16px;

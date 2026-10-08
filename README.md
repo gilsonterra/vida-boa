@@ -57,8 +57,27 @@ src/lib/
     live.svelte.ts    consulta reativa para componentes
   stores/        estado da UI (dados em memória, toasts, tema, instalação)
   ui/            design system: Sheet, Amount, editor de lançamento, gráficos SVG...
-src/routes/      telas (Início, Extrato, Ajustes, Importar, cadastros)
+src/routes/      telas: Início, Extrato (também a tela de cada conta), Contas (contas, financiamentos,
+                 tipos), Financiamento, Categorias (e regras), Importar (e histórico), Ajustes
 ```
+
+## Como o saldo é contado
+
+As regras ficam em `src/lib/domain/ledger.ts`.
+
+- **Só o consolidado conta.** Saldo das contas, patrimônio, gráfico e totais do mês somam apenas
+  lançamentos consolidados (pagos/recebidos), seja qual for a data.
+- **Ao criar**, o lançamento nasce consolidado, a não ser que a data seja futura. Dá para trocar
+  no editor ou com um toque na marca ✓/○ da linha.
+- **Importados do banco e transferências** são sempre consolidados.
+- **Parcelas de financiamento** estão pagas quando consolidadas (ou se vieram pagas no cadastro);
+  só elas abatem o saldo devedor. O pagamento de verdade continua vindo do extrato da conta.
+- **Recorrências** vivem no Extrato: as próximas ocorrências aparecem como previstas e viram
+  lançamento (consolidado) quando a data chega. Tocar no ○ lança a ocorrência na hora (paga
+  adiantado); abrir a linha permite mudar "só esta" ou "esta e as próximas", pular ou encerrar.
+  Cada ocorrência tem um id fixo (regra + data), então nada se duplica.
+- **Previsto** é o patrimônio atual somado ao que está pendente (inclusive atrasado), às parcelas
+  pendentes e às próximas recorrências até a data. Aparece no Extrato e na Início.
 
 ## Como a importação decide
 

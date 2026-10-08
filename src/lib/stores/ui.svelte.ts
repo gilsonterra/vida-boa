@@ -1,10 +1,14 @@
-import type { ID, Transaction, TransactionKind } from '../domain/types';
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
+import type { ID, ISODate, RecurringRule, Transaction, TransactionKind } from '../domain/types';
 
 /** Estado de interface compartilhado: editor de lançamento, avisos e confirmações. */
 
 export interface EditorRequest {
 	/** Lançamento a editar; ausente para criar um novo. */
 	transaction?: Transaction;
+	/** Ocorrência prevista de uma recorrência (ainda não lançada) a editar. */
+	occurrence?: { rule: RecurringRule; date: ISODate };
 	defaults?: { kind?: TransactionKind; accountId?: ID };
 }
 
@@ -54,6 +58,22 @@ export function openEditor(req: EditorRequest = {}) {
 
 export function closeEditor() {
 	ui.editor = null;
+}
+
+/** Conta a filtrar quando o Extrato abrir (vinda do card ou da lista de contas). */
+let pendingStatementAccount: ID | null = null;
+
+/** Abre o Extrato já filtrado por uma conta: a "tela da conta" é o próprio extrato. */
+export function openStatement(accountId: ID) {
+	pendingStatementAccount = accountId;
+	void goto(resolve('/extrato'));
+}
+
+/** Lê (uma vez) a conta pedida por `openStatement`. */
+export function takeStatementAccount(): ID | null {
+	const id = pendingStatementAccount;
+	pendingStatementAccount = null;
+	return id;
 }
 
 let toastSeq = 0;

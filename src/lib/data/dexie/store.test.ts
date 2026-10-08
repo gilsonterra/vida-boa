@@ -215,7 +215,8 @@ describe('transferências', () => {
 			transferId: null,
 			fitId: null,
 			importBatchId: null,
-			recurringId: null
+			recurringId: null,
+			consolidated: true
 		};
 		const a = await store.transactions.create({
 			...base,
@@ -267,6 +268,52 @@ describe('recorrentes', () => {
 			['2026-08-05', -800000]
 		]);
 	});
+	it('ocorrência paga adiantado não é lançada de novo quando a data chega', async () => {
+		const rule = await store.recurring.create({
+			description: 'Escola',
+			accountId: checking.id,
+			categoryId: null,
+			kind: 'expense',
+			amountCents: 100000,
+			frequency: 'monthly',
+			startDate: '2026-11-10',
+			endDate: null,
+			nextDate: '2026-11-10',
+			active: true
+		});
+		const id = await store.recurring.launchOccurrence(rule.id, '2026-11-10', {
+			consolidated: true
+		});
+		expect(id).toBeTruthy();
+		expect(
+			await store.recurring.launchOccurrence(rule.id, '2026-11-10', { consolidated: true })
+		).toBeNull();
+		expect(await store.recurring.materialize('2026-11-10')).toBe(0);
+		const txs = await store.transactions.list();
+		expect(txs.map((t) => [t.date, t.consolidated])).toEqual([['2026-11-10', true]]);
+	});
+
+	it('pular, lançar com outra data e encerrar não duplicam nem recriam', async () => {
+		const rule = await store.recurring.create({
+			description: 'Academia',
+			accountId: checking.id,
+			categoryId: null,
+			kind: 'expense',
+			amountCents: 9000,
+			frequency: 'monthly',
+			startDate: '2026-11-05',
+			endDate: null,
+			nextDate: '2026-11-05',
+			active: true
+		});
+		await store.recurring.skipOccurrence(rule.id, '2026-11-05');
+		// Dezembro lançada só ela, mudando a data: o id continua o da data original.
+		await store.recurring.launchOccurrence(rule.id, '2026-12-05', { date: '2026-12-08' });
+		await store.recurring.endBefore(rule.id, '2027-02-05');
+		expect(await store.recurring.materialize('2027-12-31')).toBe(1); // só janeiro
+		const txs = await store.transactions.list();
+		expect(txs.map((t) => t.date)).toEqual(['2027-01-05', '2026-12-08']);
+	});
 });
 
 describe('financiamentos', () => {
@@ -303,7 +350,8 @@ describe('financiamentos', () => {
 				transferId: null,
 				fitId: null,
 				importBatchId: null,
-				recurringId: null
+				recurringId: null,
+				consolidated: true
 			});
 		await tx(stableUuid(`loan:${loan.id}:1`), 'Casa · parcela 1/12');
 		await tx(stableUuid(`loan-prepayment:${pre.id}`), 'Casa · amortização extra');

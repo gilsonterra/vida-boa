@@ -1,6 +1,16 @@
 import { getContext, setContext } from 'svelte';
 import { store } from '../data';
 import { live } from '../data/live.svelte';
+import { today } from '../domain/dates';
+import {
+	entriesBetween,
+	paidInstallments,
+	pendingUpTo,
+	projectedPaid,
+	sumEntries,
+	type Entry,
+	type LedgerInput
+} from '../domain/ledger';
 import { buildSchedule, outstandingAt, type LoanSchedule } from '../domain/loans';
 import { accountBalances } from '../domain/reports';
 import type {
@@ -33,6 +43,16 @@ export class AppData {
 	#imports = live(() => store.imports.list(), [] as ImportBatch[]);
 	#loans = live(() => store.loans.list(), [] as Loan[]);
 	#prepayments = live(() => store.loanPrepayments.list(), [] as LoanPrepayment[]);
+	/** Ocorrências de recorrência puladas (excluídas), para não voltarem à previsão. */
+	#skipped = live(
+		async () =>
+			new Set(
+				(await store.transactions.list({ includeDeleted: true }))
+					.filter((t) => t.deletedAt && t.recurringId)
+					.map((t) => t.id)
+			),
+		new Set<ID>()
+	);
 
 	get accounts() {
 		return this.#accounts.current;
@@ -72,10 +92,28 @@ export class AppData {
 		new Map<ID, LoanSchedule>(this.loans.map((l) => [l.id, buildSchedule(l, this.prepayments)]))
 	);
 
-	/** Soma dos saldos devedores previstos na data (entra negativa no patrimônio). */
-	debtAt(date: ISODate): number {
+	/** Parcelas pagas (consolidadas) de cada financiamento. */
+	paid = $derived(
+		new Map<ID, Set<number>>(
+			this.loans.map((l) => [l.id, paidInstallments(l, this.schedules.get(l.id)!)])
+		)
+	);
+
+	/** Saldo devedor de hoje: só as parcelas consolidadas abatem a dívida. */
+	debt = $derived(
+		this.loans.reduce(
+			(s, l) => s + outstandingAt(this.schedules.get(l.id)!, today(), this.paid.get(l.id)),
+			0
+		)
+	);
+
+	/** Saldo devedor previsto numa data, contando como pagas as parcelas que vencem até ela. */
+	projectedDebtAt(date: ISODate): number {
 		let total = 0;
-		for (const s of this.schedules.values()) total += outstandingAt(s, date);
+		for (const l of this.loans) {
+			const s = this.schedules.get(l.id)!;
+			total += outstandingAt(s, date, projectedPaid(l, s, date));
+		}
 		return total;
 	}
 
@@ -89,6 +127,7 @@ export class AppData {
 	accountById = $derived(new Map(this.accounts.map((a) => [a.id, a])));
 	categoryById = $derived(new Map(this.categories.map((c) => [c.id, c])));
 	typeById = $derived(new Map(this.types.map((t) => [t.id, t])));
+	/** Saldo atual de cada conta: só lançamentos consolidados. */
 	balances = $derived(accountBalances(this.accounts, this.transactions));
 
 	/** Contas visíveis (não arquivadas), em ordem alfabética. */
@@ -106,6 +145,41 @@ export class AppData {
 			.filter((c) => c.kind === 'income')
 			.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 	);
+
+	/** Patrimônio atual: soma dos saldos das contas visíveis. */
+	netWorth = $derived(this.activeAccounts.reduce((s, a) => s + (this.balances.get(a.id) ?? 0), 0));
+
+	/** Entrada das regras de `ledger.ts`: só contas visíveis. */
+	#ledger = $derived<LedgerInput>({
+		transactions: this.transactions,
+		recurring: this.recurring,
+		loans: this.loans,
+		schedules: this.schedules,
+		accountIds: new Set(this.activeAccounts.map((a) => a.id)),
+		skippedIds: this.#skipped.current
+	});
+
+	/**
+	 * Lançamentos, parcelas e recorrências previstas no período. Por padrão só das contas
+	 * visíveis; `allAccounts` inclui as arquivadas (o extrato filtra por qualquer conta).
+	 */
+	entries(from: ISODate, to: ISODate, allAccounts = false): Entry[] {
+		return entriesBetween(
+			allAccounts ? { ...this.#ledger, accountIds: null } : this.#ledger,
+			from,
+			to
+		);
+	}
+
+	/** Pendentes (inclusive atrasados) e recorrências previstas até `upTo`. */
+	pending(upTo: ISODate): Entry[] {
+		return pendingUpTo(this.#ledger, upTo);
+	}
+
+	/** Patrimônio previsto numa data: o atual mais tudo que está pendente até ela. */
+	projectedNetWorth(date: ISODate): number {
+		return this.netWorth + sumEntries(this.pending(date));
+	}
 
 	kindOf(accountId: ID): AccountKind {
 		const account = this.accountById.get(accountId);

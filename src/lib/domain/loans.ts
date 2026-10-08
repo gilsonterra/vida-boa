@@ -132,26 +132,18 @@ export function buildSchedule(loan: Loan, prepayments: LoanPrepayment[]): LoanSc
 	};
 }
 
-/** Saldo devedor previsto numa data: parcelas vencidas e amortizações feitas até ela. */
-export function outstandingAt(schedule: LoanSchedule, date: ISODate): number {
+/**
+ * Saldo devedor numa data: parcelas pagas e amortizações feitas até ela.
+ * `paid` diz quais parcelas estão pagas (ver `paidInstallments` em `ledger.ts`); sem ele,
+ * considera pagas as vencidas até a data.
+ */
+export function outstandingAt(schedule: LoanSchedule, date: ISODate, paid?: Set<number>): number {
 	if (date < schedule.startDate) return 0;
 	let balance = schedule.principalCents;
-	for (const i of schedule.installments) if (i.dueDate <= date) balance -= i.amortizationCents;
+	for (const i of schedule.installments)
+		if (paid ? paid.has(i.n) : i.dueDate <= date) balance -= i.amortizationCents;
 	for (const p of schedule.prepayments) if (p.date <= date) balance -= p.appliedCents;
 	return Math.max(balance, 0);
-}
-
-/**
- * Parcelas pagas: as informadas no cadastro e as que já venceram até `date`.
- * O financiamento só acompanha a dívida; o pagamento de verdade aparece no extrato da conta
- * (importado ou lançado à mão), então nada aqui gera lançamento.
- */
-export function paidInstallments(loan: Loan, schedule: LoanSchedule, date: ISODate): Set<number> {
-	const paid = new Set<number>();
-	for (const i of schedule.installments) {
-		if (i.n <= loan.paidBefore || i.dueDate <= date) paid.add(i.n);
-	}
-	return paid;
 }
 
 export const LOAN_KIND_LABEL = {

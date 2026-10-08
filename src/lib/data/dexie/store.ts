@@ -1,6 +1,7 @@
-import { addDays, daysBetween } from '../../domain/dates';
+import { addDays, daysBetween, today } from '../../domain/dates';
 import { stableUuid } from '../../domain/ids';
-import { dueOccurrences } from '../../domain/recurrence';
+import { dueOccurrences, endBefore, occurrenceId } from '../../domain/recurrence';
+import { defaultConsolidated } from '../../domain/ledger';
 import { SEED_ACCOUNT_TYPES, SEED_CATEGORIES, SEED_RULES, SEED_VERSION } from '../../domain/seed';
 import type {
 	AccountType,
@@ -130,7 +131,9 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 				transferId,
 				fitId: null,
 				importBatchId: null,
-				recurringId: null
+				recurringId: null,
+				// Transferência é sempre consolidada.
+				consolidated: true
 			};
 			await db.transactions.bulkAdd([
 				stamp<Transaction>({
@@ -169,10 +172,12 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 					)[0];
 
 				const transferId = t.transferId ?? uuid();
+				// Virou transferência: sempre consolidada, nas duas pernas.
 				await db.transactions.update(id, {
 					kind: 'transfer',
 					categoryId: null,
 					transferId,
+					consolidated: true,
 					updatedAt: ts
 				});
 				if (match) {
@@ -180,6 +185,7 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 						kind: 'transfer',
 						categoryId: null,
 						transferId,
+						consolidated: true,
 						updatedAt: ts
 					});
 				} else {
@@ -195,7 +201,8 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 							transferId,
 							fitId: null,
 							importBatchId: null,
-							recurringId: null
+							recurringId: null,
+							consolidated: true
 						})
 					);
 				}
@@ -273,6 +280,38 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 				});
 				if (created) notifyChange();
 				return created;
+			},
+
+			async launchOccurrence(ruleId, date, fields = {}) {
+				const rule = await db.recurring.get(ruleId);
+				if (!rule || !isLive(rule)) return null;
+				// O id é sempre o da data original, mesmo que `fields` mude a data.
+				const t = {
+					...recurringTransaction(rule, date),
+					...fields,
+					id: occurrenceId(rule.id, date)
+				};
+				// Se já existir (até excluído), não recria: o mesmo cuidado de `materialize`.
+				if (await db.transactions.get(t.id)) return null;
+				await db.transactions.add(t);
+				notifyChange();
+				return t.id;
+			},
+
+			async skipOccurrence(ruleId, date) {
+				const rule = await db.recurring.get(ruleId);
+				if (!rule) return;
+				const id = occurrenceId(rule.id, date);
+				if (await db.transactions.get(id)) return;
+				// Registro excluído com o id da ocorrência: some da previsão e não é recriado.
+				const ts = now();
+				await db.transactions.add({ ...recurringTransaction(rule, date), deletedAt: ts });
+				notifyChange();
+			},
+
+			async endBefore(ruleId, date) {
+				await db.recurring.update(ruleId, { endDate: endBefore(date), updatedAt: now() });
+				notifyChange();
 			}
 		},
 
@@ -348,6 +387,8 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 									kind: 'transfer',
 									categoryId: null,
 									transferId,
+									// A perna que já existia (talvez agendada) acabou de aparecer no banco.
+									consolidated: true,
 									updatedAt: ts
 								});
 							}
@@ -364,7 +405,9 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 								transferId,
 								fitId: item.source.fitId,
 								importBatchId: batch.id,
-								recurringId: null
+								recurringId: null,
+								// Veio do extrato do banco: já aconteceu.
+								consolidated: true
 							})
 						);
 					}
@@ -503,7 +546,7 @@ export function createDexieStore(db = new VidaBoaDB()): DataStore {
 
 function recurringTransaction(rule: RecurringRule, date: string): Transaction {
 	return stamp<Transaction>({
-		id: stableUuid(`recurring:${rule.id}:${date}`),
+		id: occurrenceId(rule.id, date),
 		accountId: rule.accountId,
 		date,
 		amountCents: rule.kind === 'expense' ? -Math.abs(rule.amountCents) : Math.abs(rule.amountCents),
@@ -514,6 +557,7 @@ function recurringTransaction(rule: RecurringRule, date: string): Transaction {
 		transferId: null,
 		fitId: null,
 		importBatchId: null,
-		recurringId: rule.id
+		recurringId: rule.id,
+		consolidated: defaultConsolidated(date, today())
 	});
 }

@@ -107,7 +107,7 @@
 		await store.loans.remove(loan.id);
 		toast('Financiamento excluído');
 		open = false;
-		void goto(resolve('/financiamentos'));
+		void goto(resolve('/contas'));
 	}
 </script>
 

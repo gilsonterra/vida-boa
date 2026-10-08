@@ -1,5 +1,19 @@
-import { nextOccurrence } from './dates';
-import type { ISODate, RecurringRule } from './types';
+import { addDays, nextOccurrence } from './dates';
+import { stableUuid } from './ids';
+import type { ID, ISODate, RecurringRule } from './types';
+
+/**
+ * Id da ocorrência de uma recorrência num dia. Lançar, pular (lançar e excluir) e a criação
+ * automática usam o mesmo id, então nada se duplica, nem entre aparelhos.
+ */
+export function occurrenceId(ruleId: ID, date: ISODate): ID {
+	return stableUuid(`recurring:${ruleId}:${date}`);
+}
+
+/** Último dia antes de `date`: encerrar "a partir desta" mantém as anteriores. */
+export function endBefore(date: ISODate): ISODate {
+	return addDays(date, -1);
+}
 
 /** Proteção contra loops caso uma regra antiga fique anos sem ser processada. */
 const MAX_OCCURRENCES = 400;

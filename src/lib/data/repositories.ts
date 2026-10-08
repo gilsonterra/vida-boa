@@ -76,6 +76,16 @@ export interface ImportRepository {
 export interface RecurringRepository extends Repository<RecurringRule> {
 	/** Lança as ocorrências vencidas até `upTo`. Devolve quantas foram criadas. */
 	materialize(upTo: ISODate): Promise<number>;
+	/**
+	 * Lança agora a ocorrência de `date` (ex.: paga adiantado ou editada só ela), com o id que
+	 * ela teria; `fields` muda valores dela (inclusive a data). Quando a data chegar,
+	 * `materialize` não cria outra. Devolve o id, ou `null` se ela já foi lançada ou pulada.
+	 */
+	launchOccurrence(ruleId: ID, date: ISODate, fields?: Partial<Transaction>): Promise<ID | null>;
+	/** Pula a ocorrência de `date`: não aparece nem é lançada. */
+	skipOccurrence(ruleId: ID, date: ISODate): Promise<void>;
+	/** Encerra a recorrência antes de `date` (as ocorrências anteriores ficam). */
+	endBefore(ruleId: ID, date: ISODate): Promise<void>;
 }
 
 export interface LoanRepository extends Repository<Loan> {

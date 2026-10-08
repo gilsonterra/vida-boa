@@ -8,15 +8,16 @@
 		LOAN_KIND_LABEL,
 		monthlyRate,
 		outstandingAt,
-		paidInstallments,
 		SYSTEM_LABEL
 	} from '#lib/domain/loans.ts';
 	import { parseAmountToCents } from '#lib/domain/money.ts';
 	import type { ID, PrepaymentEffect } from '#lib/domain/types.ts';
+	import { setInstallmentConsolidated } from '#lib/stores/consolidate.ts';
 	import { useAppData } from '#lib/stores/data.svelte.ts';
 	import { confirmAction, toast } from '#lib/stores/ui.svelte.ts';
 	import Amount from '#lib/ui/Amount.svelte';
 	import Button from '#lib/ui/Button.svelte';
+	import ConsolidateToggle from '#lib/ui/ConsolidateToggle.svelte';
 	import EmptyState from '#lib/ui/EmptyState.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import LoanEditor from '#lib/ui/LoanEditor.svelte';
@@ -38,9 +39,8 @@
 
 	const loan = $derived(data.loans.find((l) => l.id === params.id));
 	const schedule = $derived(loan ? data.schedules.get(loan.id) : undefined);
-	const paid = $derived(
-		loan && schedule ? paidInstallments(loan, schedule, now) : new Set<number>()
-	);
+	/** Parcelas pagas = consolidadas (ou pagas antes do cadastro). */
+	const paid = $derived((loan && data.paid.get(loan.id)) || new Set<number>());
 	const prepayments = $derived(
 		data.prepayments
 			.filter((p) => p.loanId === params.id)
@@ -66,7 +66,7 @@
 					)
 			: 0
 	);
-	const balance = $derived(schedule ? outstandingAt(schedule, now) : 0);
+	const balance = $derived(schedule ? outstandingAt(schedule, now, paid) : 0);
 	const next = $derived(schedule?.installments.find((i) => !paid.has(i.n)));
 	const last = $derived(schedule?.installments.at(-1));
 	const rateLabel = $derived.by(() => {
@@ -121,7 +121,7 @@
 
 <PageHeader
 	title={loan?.name ?? 'Financiamento'}
-	back={{ href: resolve('/financiamentos'), label: 'Financiamentos' }}
+	back={{ href: resolve('/contas'), label: 'Contas' }}
 	subtitle={loan
 		? `${LOAN_KIND_LABEL[loan.kind]} · ${loan.mode === 'simple' ? 'parcela fixa' : SYSTEM_LABEL[loan.system]}${rateLabel ? ` · ${rateLabel}` : ''}`
 		: undefined}
@@ -242,6 +242,7 @@
 							<th>Juros</th>
 							<th>Amortização</th>
 							<th>Saldo</th>
+							<th><span class="sr-only">Consolidada</span></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -253,6 +254,15 @@
 								<td><Amount cents={i.interestCents} size="sm" /></td>
 								<td><Amount cents={i.amortizationCents} size="sm" /></td>
 								<td><Amount cents={i.balanceCents} size="sm" /></td>
+								<td class="mark">
+									{#if i.n > loan.paidBefore}
+										<ConsolidateToggle
+											on={paid.has(i.n)}
+											size={20}
+											onclick={() => setInstallmentConsolidated(loan, i.n, !paid.has(i.n))}
+										/>
+									{/if}
+								</td>
 							</tr>
 							{#each schedule.prepayments.filter((p) => p.afterInstallment === i.n) as p (p.id)}
 								<tr class="extra">
@@ -263,6 +273,7 @@
 									</td>
 									<td><Amount cents={p.appliedCents} size="sm" /></td>
 									<td></td>
+									<td></td>
 								</tr>
 							{/each}
 						{/each}
@@ -272,7 +283,7 @@
 		</section>
 	{:else if data.ready}
 		<EmptyState title="Financiamento não encontrado" text="Ele pode ter sido excluído.">
-			<Button href={resolve('/financiamentos')}>Ver financiamentos</Button>
+			<Button href={resolve('/contas')}>Ver financiamentos</Button>
 		</EmptyState>
 	{/if}
 </div>
@@ -435,9 +446,13 @@
 		top: 0;
 		background: var(--paper);
 	}
-	tr.paid td {
-		color: var(--ink-2);
-		opacity: 0.7;
+	/* Pendente fica apagada (a marca não), como no extrato. */
+	tr:not(.paid):not(.extra) td:not(.mark) {
+		opacity: 0.55;
+	}
+	td.mark {
+		padding-block: 0;
+		width: 44px;
 	}
 	tr.next td {
 		font-weight: 600;

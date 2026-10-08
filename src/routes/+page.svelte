@@ -12,8 +12,8 @@
 		Plus,
 		TriangleAlert
 	} from '@lucide/svelte';
-	import { addDays, formatDayShort, monthKey, today } from '#lib/domain/dates.ts';
-	import { upcomingDates } from '#lib/domain/recurrence.ts';
+	import { monthKey, monthRange, today } from '#lib/domain/dates.ts';
+	import { isConsolidated, soon, SOON_DAYS, transactionEntry } from '#lib/domain/ledger.ts';
 	import {
 		chartMonths,
 		inMonth,
@@ -23,7 +23,7 @@
 	} from '#lib/domain/reports.ts';
 	import { useAppData } from '#lib/stores/data.svelte.ts';
 	import { cloud } from '#lib/stores/sync.svelte.ts';
-	import { openEditor, togglePrivacy, ui } from '#lib/stores/ui.svelte.ts';
+	import { openEditor, openStatement, togglePrivacy, ui } from '#lib/stores/ui.svelte.ts';
 	import AccountEditor from '#lib/ui/AccountEditor.svelte';
 	import Amount from '#lib/ui/Amount.svelte';
 	import Button from '#lib/ui/Button.svelte';
@@ -33,8 +33,7 @@
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { ACCOUNT_KIND_ICON } from '#lib/ui/icons.ts';
 	import Segmented from '#lib/ui/Segmented.svelte';
-	import TransactionRow from '#lib/ui/TransactionRow.svelte';
-	import CategoryMark from '#lib/ui/CategoryMark.svelte';
+	import EntryRow from '#lib/ui/EntryRow.svelte';
 	import { dragScroll } from '#lib/ui/drag-scroll.ts';
 	import { MediaQuery } from 'svelte/reactivity';
 
@@ -51,11 +50,12 @@
 		return data.transactions.filter((t) => ids.has(t.accountId));
 	});
 
-	// Patrimônio é só o que está nas contas; o saldo devedor dos financiamentos aparece à parte.
-	const netWorth = $derived(
-		visibleAccounts.reduce((s, a) => s + (data.balances.get(a.id) ?? 0), 0)
-	);
-	const debt = $derived(data.debtAt(now));
+	// Patrimônio é o consolidado nas contas; a dívida dos financiamentos aparece à parte.
+	const netWorth = $derived(data.netWorth);
+	const debt = $derived(data.debt);
+	/** Patrimônio previsto no fim do mês, com o que está pendente até lá. */
+	const monthEnd = monthRange(thisMonth).end;
+	const projected = $derived(data.projectedNetWorth(monthEnd));
 	/** Período do gráfico, em meses ('all' = desde o primeiro lançamento). */
 	type Range = '3' | '6' | '12' | 'all';
 	let range = $state<Range>('6');
@@ -79,7 +79,8 @@
 		lastTwo.length > 1 ? lastTwo[1].totalCents - lastTwo[0].totalCents : 0
 	);
 	const month = $derived(summarize(inMonth(visibleTx, thisMonth)));
-	const recent = $derived(visibleTx.slice(0, 6));
+	/** Só o consolidado; os pendentes têm a lista própria logo acima. */
+	const recent = $derived(visibleTx.filter(isConsolidated).slice(0, 6).map(transactionEntry));
 
 	/** Contas na ordem dos grupos (contas, cartões, investimentos...), para o carrossel. */
 	const orderedAccounts = $derived(
@@ -93,15 +94,8 @@
 		return first ? first[0].toUpperCase() + first.slice(1).toLowerCase() : '';
 	});
 
-	/** Recorrências que vencem nas próximas duas semanas. */
-	const upcoming = $derived(
-		data.recurring
-			.filter((r) => r.active)
-			.flatMap((r) => upcomingDates(r, 3).map((date) => ({ rule: r, date })))
-			.filter((u) => u.date <= addDays(now, 14))
-			.sort((a, b) => a.date.localeCompare(b.date))
-			.slice(0, 4)
-	);
+	/** Pendentes (atrasados primeiro) e recorrências previstas das próximas duas semanas. */
+	const upcoming = $derived(data.pending(soon(now)).slice(0, 5));
 
 	const cloudLabel = $derived(
 		cloud.status === 'syncing'
@@ -179,8 +173,14 @@
 							>{monthDelta === 0 ? 'sem variação no mês' : 'neste mês'}</Trend
 						>
 					</p>
+					{#if projected !== netWorth}
+						<a class="debt" href={resolve('/extrato')}>
+							<span>Previsto no fim do mês</span>
+							<Amount cents={projected} size="md" tone="auto" />
+						</a>
+					{/if}
 					{#if debt > 0}
-						<a class="debt" href={resolve('/financiamentos')}>
+						<a class="debt" href={resolve('/contas')}>
 							<span>Falta pagar nos financiamentos</span>
 							<Amount cents={-debt} size="md" tone="loss" />
 						</a>
@@ -224,7 +224,12 @@
 						{#each orderedAccounts as a, i (a.id)}
 							{@const Icon = ACCOUNT_KIND_ICON[data.kindOf(a.id)]}
 							<li>
-								<a class="card" class:first={i === 0} href={resolve('/contas/[id]', { id: a.id })}>
+								<button
+									type="button"
+									class="card"
+									class:first={i === 0}
+									onclick={() => openStatement(a.id)}
+								>
 									<span class="card-top">
 										<strong>{a.name}</strong>
 										<span class="card-ico"><Icon size={20} strokeWidth={1.8} /></span>
@@ -233,7 +238,7 @@
 										<small>{a.institution || 'Saldo'}</small>
 										<Amount cents={data.balances.get(a.id) ?? 0} size="lg" tone="debt" />
 									</span>
-								</a>
+								</button>
 							</li>
 						{/each}
 					</ul>
@@ -242,29 +247,12 @@
 				{#if upcoming.length}
 					<section class="block">
 						<header>
-							<h2>Próximos lançamentos</h2>
-							<a href={resolve('/recorrentes')} class="link">Recorrentes</a>
+							<h2>A pagar e a receber</h2>
+							<a href={resolve('/extrato')} class="link">Ver todos</a>
 						</header>
+						<p class="hint">Pendentes e previstos para os próximos {SOON_DAYS} dias.</p>
 						<ul>
-							{#each upcoming as u (u.rule.id + u.date)}
-								<li class="row">
-									<CategoryMark
-										category={u.rule.categoryId
-											? data.categoryById.get(u.rule.categoryId)
-											: undefined}
-									/>
-									<span class="main">
-										<span class="title">{u.rule.description}</span>
-										<small>{u.date === now ? 'Hoje' : formatDayShort(u.date)}</small>
-									</span>
-									<Amount
-										cents={u.rule.kind === 'expense' ? -u.rule.amountCents : u.rule.amountCents}
-										size="sm"
-										signed
-										tone="auto"
-									/>
-								</li>
-							{/each}
+							{#each upcoming as e (e.key)}<li><EntryRow entry={e} showDate /></li>{/each}
 						</ul>
 					</section>
 				{/if}
@@ -276,7 +264,7 @@
 					</header>
 					{#if recent.length}
 						<div>
-							{#each recent as t (t.id)}<TransactionRow transaction={t} />{/each}
+							{#each recent as e (e.key)}<EntryRow entry={e} />{/each}
 						</div>
 					{:else}
 						<p class="muted">
@@ -488,6 +476,8 @@
 		scroll-snap-align: start;
 	}
 	.card {
+		width: 100%;
+		text-align: left;
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
@@ -526,16 +516,8 @@
 		font-weight: 500;
 		color: var(--ink-2);
 	}
-	.main {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-	}
-	.title {
-		font-weight: 600;
-	}
-	.main small {
+	.hint {
+		margin: -8px 0 12px;
 		font-size: 13px;
 		color: var(--ink-2);
 	}

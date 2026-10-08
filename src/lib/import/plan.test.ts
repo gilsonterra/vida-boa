@@ -71,6 +71,7 @@ function tx(
 		fitId: null,
 		importBatchId: null,
 		recurringId: null,
+		consolidated: true,
 		...meta,
 		...p
 	};

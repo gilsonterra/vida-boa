@@ -1,21 +1,21 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import { Plus } from '@lucide/svelte';
-	import { store } from '#lib/data/index.ts';
-	import { today } from '#lib/domain/dates.ts';
-	import { findMatchingRule } from '#lib/domain/rules.ts';
-	import { buildRulesFile, parseRulesFile, planRulesImport } from '#lib/domain/rules-file.ts';
-	import type { CategorizationRule, CategoryKind, ID, MatchType } from '#lib/domain/types.ts';
-	import { useAppData } from '#lib/stores/data.svelte.ts';
-	import { confirmAction, toast } from '#lib/stores/ui.svelte.ts';
-	import Button from '#lib/ui/Button.svelte';
-	import CategoryMark from '#lib/ui/CategoryMark.svelte';
-	import CategoryPicker from '#lib/ui/CategoryPicker.svelte';
-	import IconButton from '#lib/ui/IconButton.svelte';
-	import PageHeader from '#lib/ui/PageHeader.svelte';
-	import Segmented from '#lib/ui/Segmented.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import { store } from '../data';
+	import { today } from '../domain/dates';
+	import { findMatchingRule } from '../domain/rules';
+	import { buildRulesFile, parseRulesFile, planRulesImport } from '../domain/rules-file';
+	import type { CategorizationRule, CategoryKind, ID, MatchType } from '../domain/types';
+	import { useAppData } from '../stores/data.svelte';
+	import { confirmAction, toast } from '../stores/ui.svelte';
+	import Button from './Button.svelte';
+	import CategoryMark from './CategoryMark.svelte';
+	import CategoryPicker from './CategoryPicker.svelte';
+	import Segmented from './Segmented.svelte';
+	import Sheet from './Sheet.svelte';
 
+	/**
+	 * Regras de categorização: quando a descrição de um lançamento casa com uma regra, ele já
+	 * chega categorizado na importação. Fica dentro da tela de Categorias.
+	 */
 	const data = useAppData();
 	const MATCH_LABEL: Record<MatchType, string> = {
 		contains: 'contém',
@@ -46,6 +46,11 @@
 	const uncategorized = $derived(
 		data.transactions.filter((t) => !t.categoryId && t.kind !== 'transfer')
 	);
+
+	/** Abre o editor para uma regra nova (o botão + da tela chama). */
+	export function newRule() {
+		edit(null);
+	}
 
 	function edit(r: CategorizationRule | null) {
 		editing = r;
@@ -146,19 +151,10 @@
 	}
 </script>
 
-<PageHeader
-	title="Regras"
-	back={{ href: resolve('/cadastros'), label: 'Cadastros' }}
-	subtitle="Quando a descrição de um lançamento casa com uma regra, ele já chega categorizado na importação."
->
-	{#snippet actions()}
-		<IconButton tone="hi" label="Nova regra" onclick={() => edit(null)}
-			><Plus size={22} strokeWidth={1.6} /></IconButton
-		>
-	{/snippet}
-</PageHeader>
-
-<div class="page">
+<div class="rules">
+	<p class="intro muted">
+		Quando a descrição de um lançamento casa com uma regra, ele já chega categorizado na importação.
+	</p>
 	{#if uncategorized.length}
 		<div class="apply">
 			<p>{uncategorized.length} lançamento(s) sem categoria.</p>
@@ -280,8 +276,9 @@
 </Sheet>
 
 <style>
-	.page {
-		padding-inline: 20px;
+	.intro {
+		margin-bottom: 16px;
+		font-size: 14px;
 	}
 	.apply {
 		display: flex;

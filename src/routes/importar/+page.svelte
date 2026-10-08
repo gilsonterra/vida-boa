@@ -6,11 +6,11 @@
 	import { formatDayShort } from '#lib/domain/dates.ts';
 	import { formatCents } from '#lib/domain/money.ts';
 	import { balanceAt } from '#lib/domain/reports.ts';
-	import type { Account, ID } from '#lib/domain/types.ts';
+	import type { Account, ID, ImportBatch } from '#lib/domain/types.ts';
 	import { buildImportPlan, planSummary, type ImportItem } from '#lib/import/plan.ts';
 	import { decodeOfx, OfxParseError, parseOfx, type OfxStatement } from '#lib/ofx/parse.ts';
 	import { useAppData } from '#lib/stores/data.svelte.ts';
-	import { haptic, toast } from '#lib/stores/ui.svelte.ts';
+	import { confirmAction, haptic, toast } from '#lib/stores/ui.svelte.ts';
 	import AccountEditor from '#lib/ui/AccountEditor.svelte';
 	import Amount from '#lib/ui/Amount.svelte';
 	import Button from '#lib/ui/Button.svelte';
@@ -157,6 +157,20 @@
 		showSkipped ? items : items.filter((i) => i.status === 'new' || i.include)
 	);
 	const hiddenCount = $derived(items.length - visibleItems.length);
+
+	const when = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' });
+
+	async function undoImport(b: ImportBatch) {
+		const ok = await confirmAction({
+			title: 'Desfazer importação?',
+			message: `Os ${b.importedCount} lançamentos de “${b.fileName}” serão removidos, inclusive os que você editou depois.`,
+			confirmLabel: 'Desfazer',
+			destructive: true
+		});
+		if (!ok) return;
+		const n = await store.imports.undo(b.id);
+		toast(`${n} lançamento(s) removidos`);
+	}
 </script>
 
 <PageHeader
@@ -363,6 +377,30 @@
 			</div>
 		</section>
 	{/if}
+
+	<!-- Histórico fica aqui mesmo, com a opção de desfazer (fora da revisão, para não distrair). -->
+	{#if step !== 'review' && data.imports.length}
+		<section class="history">
+			<h2>Importações anteriores</h2>
+			<ul>
+				{#each data.imports as b (b.id)}
+					<li class="row item">
+						<div class="h-main">
+							<span class="h-name">{b.fileName}</span>
+							<small>
+								{data.accountById.get(b.accountId)?.name ?? 'Conta removida'}, {b.importedCount} importado(s)
+								{#if b.periodStart && b.periodEnd}de {formatDayShort(b.periodStart)} a {formatDayShort(
+										b.periodEnd
+									)}{/if}
+							</small>
+							<small class="h-when">{when.format(new Date(b.createdAt))}</small>
+						</div>
+						<Button size="sm" variant="secondary" onclick={() => undoImport(b)}>Desfazer</Button>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 </div>
 
 <AccountEditor
@@ -376,6 +414,29 @@
 <style>
 	.page {
 		padding-inline: 20px;
+	}
+	.history {
+		margin-top: 40px;
+	}
+	.history h2 {
+		margin-bottom: 12px;
+		font-size: 17px;
+	}
+	.h-main {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.h-name {
+		overflow-wrap: anywhere;
+	}
+	.h-main small {
+		font-size: 13px;
+		color: var(--ink-2);
+	}
+	.h-main .h-when {
+		color: var(--ink-3);
 	}
 	.drop {
 		display: flex;

@@ -2,11 +2,12 @@
 	import { untrack } from 'svelte';
 	import * as v from 'valibot';
 	import { store } from '../data';
-	import { today } from '../domain/dates';
+	import { formatDayShort, formatDayShortYear, nextOccurrence, today } from '../domain/dates';
+	import { defaultConsolidated, isConsolidated } from '../domain/ledger';
 	import { centsToInput, formatCents, parseAmountToCents } from '../domain/money';
-	import { FREQUENCY_LABEL } from '../domain/recurrence';
+	import { FREQUENCY_LABEL, upcomingDates } from '../domain/recurrence';
 	import { merchantKey, normalizeText } from '../domain/text';
-	import type { Frequency, ID, Transaction, TransactionKind } from '../domain/types';
+	import type { Frequency, ID, RecurringRule, Transaction, TransactionKind } from '../domain/types';
 	import { useAppData } from '../stores/data.svelte';
 	import {
 		closeEditor,
@@ -28,31 +29,95 @@
 	const data = useAppData();
 
 	// O formulário copia o pedido uma única vez, na abertura (o editor é recriado a cada pedido).
-	const { transaction: original, defaults } = untrack(() => request);
+	const { transaction: original, occurrence, defaults } = untrack(() => request);
+	/** Recorrência por trás do que está sendo editado (ocorrência prevista ou já lançada). */
+	const rule =
+		occurrence?.rule ??
+		(original?.recurringId ? data.recurring.find((r) => r.id === original.recurringId) : undefined);
+	/** Valores de partida: o lançamento, ou a recorrência para uma ocorrência prevista. */
+	const seed = original ?? (occurrence ? fromRule(occurrence.rule, occurrence.date) : undefined);
+
+	function fromRule(r: RecurringRule, d: string) {
+		return {
+			kind: r.kind as TransactionKind,
+			amountCents: r.kind === 'expense' ? -r.amountCents : r.amountCents,
+			description: r.description,
+			date: d,
+			accountId: r.accountId,
+			categoryId: r.categoryId,
+			notes: ''
+		};
+	}
 	const partner = original ? data.partnerOf(original) : undefined;
 	const outLeg =
 		original?.kind === 'transfer' && partner && original.amountCents > 0 ? partner : original;
 	const inLeg = outLeg === original ? partner : original;
 
 	let open = $state(true);
-	let kind = $state<TransactionKind>(original?.kind ?? defaults?.kind ?? 'expense');
-	let amountText = $state(original ? centsToInput(original.amountCents) : '');
-	let description = $state(original?.description ?? '');
-	let date = $state(original?.date ?? today());
+	let kind = $state<TransactionKind>(seed?.kind ?? defaults?.kind ?? 'expense');
+	let amountText = $state(seed ? centsToInput(seed.amountCents) : '');
+	let description = $state(seed?.description ?? '');
+	let date = $state(seed?.date ?? today());
 	let accountId = $state<ID>(
-		outLeg?.accountId ?? defaults?.accountId ?? data.activeAccounts[0]?.id ?? ''
+		outLeg?.accountId ?? seed?.accountId ?? defaults?.accountId ?? data.activeAccounts[0]?.id ?? ''
 	);
 	let toAccountId = $state<ID>(inLeg?.accountId ?? '');
-	let categoryId = $state<ID | null>(original?.categoryId ?? null);
-	let notes = $state(original?.notes ?? '');
+	let categoryId = $state<ID | null>(seed?.categoryId ?? null);
+	let notes = $state(seed?.notes ?? '');
 	let refund = $state(original?.kind === 'expense' && original.amountCents > 0);
-	let repeat = $state<'none' | Frequency>('none');
+	let repeat = $state<'none' | Frequency>(rule?.frequency ?? 'none');
+	/** Como a recorrência termina: nunca, numa data ou depois de N vezes (parcelas). */
+	let endMode = $state<'never' | 'date' | 'count'>(rule?.endDate ? 'date' : 'never');
+	let endDate = $state(rule?.endDate ?? '');
+	/** Numa recorrência: a mudança vale só para esta ocorrência ou para esta e as próximas. */
+	let scope = $state<'one' | 'next'>('one');
+	let times = $state(12);
+	/**
+	 * Só consolidado conta no saldo. Num lançamento novo, segue a data até você marcar à mão
+	 * (data futura nasce pendente). Transferência é sempre consolidada.
+	 */
+	let consolidated = $state(original ? isConsolidated(original) : true);
+	// Ao editar, o valor gravado vale; não muda sozinho com a data (a ocorrência prevista, sim).
+	let consolidatedTouched = !!original;
 	let errors = $state<Record<string, string>>({});
 	let saving = $state(false);
 
-	const isNew = !original;
+	const isNew = !original && !occurrence;
+	/** Campos de repetição: ao criar, num lançamento avulso, ou mudando "esta e as próximas". */
+	const showRepeat = $derived(kind !== 'transfer' && (!rule || scope === 'next'));
+	/** Próximas datas da recorrência, para dar contexto. */
+	const upcoming = $derived(rule ? upcomingDates(rule, 3) : []);
+	const FREQUENCY_PHRASE = { weekly: 'toda semana', monthly: 'todo mês', yearly: 'todo ano' };
+
+	/** Data da última ocorrência, conforme o término escolhido (`null` = sem fim). */
+	const lastDate = $derived.by(() => {
+		if (repeat === 'none' || endMode === 'never') return null;
+		if (endMode === 'date') return endDate || null;
+		if (!(times >= 1)) return null;
+		// Este lançamento é a 1ª vez; a N-ésima fecha a recorrência.
+		let d = date;
+		for (let i = 1; i < Math.min(times, 600); i++) d = nextOccurrence(d, repeat, date);
+		return d;
+	});
+
+	/**
+	 * Próxima ocorrência ao tornar recorrente um lançamento já gravado: a seguinte a ele, mas
+	 * nunca no passado (as de antes de hoje já devem estar no extrato do banco).
+	 */
+	function firstNext(from: string, frequency: Frequency): string {
+		const now = today();
+		let next = nextOccurrence(from, frequency, from);
+		while (next < now) next = nextOccurrence(next, frequency, from);
+		return next;
+	}
 	const title = $derived(
-		!isNew ? 'Editar lançamento' : kind === 'transfer' ? 'Nova transferência' : 'Novo lançamento'
+		occurrence
+			? 'Lançamento previsto'
+			: !isNew
+				? 'Editar lançamento'
+				: kind === 'transfer'
+					? 'Nova transferência'
+					: 'Novo lançamento'
 	);
 
 	const accountOptions = $derived(
@@ -69,6 +134,12 @@
 				: 'Sai de'
 	);
 	const targetLabel = $derived(converting && original!.amountCents > 0 ? 'Veio de' : 'Vai para');
+
+	$effect(() => {
+		// Data futura nasce pendente; hoje ou antes, consolidado.
+		const d = date;
+		if (!consolidatedTouched) consolidated = defaultConsolidated(d, today());
+	});
 
 	$effect(() => {
 		// Ao trocar entre despesa e receita, a categoria anterior deixa de valer.
@@ -106,6 +177,12 @@
 		if (kind === 'transfer' && toAccountId && toAccountId === accountId) {
 			next.toAccountId = 'Escolha uma conta diferente.';
 		}
+		if (repeat !== 'none' && endMode === 'date' && (!endDate || endDate < date)) {
+			next.endDate = 'Escolha um término depois da data.';
+		}
+		if (repeat !== 'none' && endMode === 'count' && !(times >= 2 && Number.isInteger(times))) {
+			next.endDate = 'Informe 2 vezes ou mais.';
+		}
 		errors = next;
 		return result.success && Object.keys(next).length === 0 ? Math.abs(amount!) : null;
 	}
@@ -123,7 +200,9 @@
 		saving = true;
 		try {
 			const desc = description.trim();
-			if (isNew) await create(cents, desc);
+			if (rule && scope === 'next') await updateSeries(cents, desc);
+			else if (occurrence) await launchThis(cents, desc);
+			else if (isNew) await create(cents, desc);
 			else await update(original!, cents, desc);
 			haptic();
 			close();
@@ -156,7 +235,7 @@
 				amountCents: cents,
 				frequency: repeat,
 				startDate: date,
-				endDate: null,
+				endDate: lastDate,
 				nextDate: date,
 				active: true
 			});
@@ -179,9 +258,73 @@
 			transferId: null,
 			fitId: null,
 			importBatchId: null,
-			recurringId: null
+			recurringId: null,
+			consolidated
 		});
 		toast(kind === 'income' ? 'Receita registrada' : 'Despesa registrada');
+	}
+
+	/** Valores de despesa/receita do formulário, para lançar ou atualizar. */
+	function txFields(cents: number, desc: string) {
+		return {
+			kind,
+			amountCents: signed(cents),
+			categoryId,
+			description: desc,
+			notes,
+			date,
+			accountId,
+			consolidated
+		};
+	}
+
+	/** Só esta ocorrência prevista: vira lançamento com os valores editados. */
+	async function launchThis(cents: number, desc: string) {
+		const r = occurrence!.rule;
+		const id = await store.recurring.launchOccurrence(
+			r.id,
+			occurrence!.date,
+			txFields(cents, desc)
+		);
+		toast(id ? 'Lançamento salvo' : 'Essa ocorrência já foi lançada');
+	}
+
+	/**
+	 * Esta e as próximas: a recorrência antiga termina antes desta data e uma nova começa nela
+	 * com os valores novos (as anteriores ficam como estavam). "Não repetir" só encerra.
+	 */
+	async function updateSeries(cents: number, desc: string) {
+		const r = rule!;
+		const from = occurrence?.date ?? original!.date;
+		if (original) await store.transactions.update(original.id, txFields(cents, desc));
+		await store.recurring.endBefore(
+			r.id,
+			original ? nextOccurrence(from, r.frequency, r.startDate) : from
+		);
+		if (repeat === 'none') {
+			// Esta fica como a última.
+			if (occurrence) await store.recurring.launchOccurrence(r.id, from, txFields(cents, desc));
+			toast('Recorrência encerrada');
+			return;
+		}
+		const created = await store.recurring.create({
+			description: desc,
+			accountId,
+			categoryId,
+			kind: kind === 'income' ? 'income' : 'expense',
+			amountCents: cents,
+			frequency: repeat,
+			startDate: date,
+			endDate: lastDate,
+			// Num lançamento já gravado, ele mesmo é a 1ª vez; a nova começa na seguinte.
+			nextDate: original ? firstNext(date, repeat) : date,
+			active: true
+		});
+		if (original) await store.transactions.update(original.id, { recurringId: created.id });
+		else if (consolidated)
+			await store.recurring.launchOccurrence(created.id, date, txFields(cents, desc));
+		await store.recurring.materialize(today());
+		toast('Esta e as próximas atualizadas');
 	}
 
 	async function update(t: Transaction, cents: number, desc: string) {
@@ -213,7 +356,8 @@
 					description: desc,
 					notes,
 					date,
-					accountId
+					accountId,
+					consolidated
 				});
 			}
 			toast('Lançamento atualizado');
@@ -226,7 +370,8 @@
 				description: desc,
 				notes,
 				date,
-				accountId
+				accountId,
+				consolidated
 			});
 			await store.transactions.convertToTransfer(t.id, toAccountId);
 			toast('Convertido em transferência');
@@ -240,8 +385,28 @@
 			description: desc,
 			notes,
 			date,
-			accountId
+			accountId,
+			consolidated
 		});
+		if (repeat !== 'none' && !rule) {
+			// Este lançamento vira a primeira ocorrência; as próximas são lançadas quando vencerem.
+			const created = await store.recurring.create({
+				description: desc,
+				accountId,
+				categoryId,
+				kind: kind === 'income' ? 'income' : 'expense',
+				amountCents: cents,
+				frequency: repeat,
+				startDate: date,
+				endDate: lastDate,
+				nextDate: firstNext(date, repeat),
+				active: true
+			});
+			await store.transactions.update(t.id, { recurringId: created.id });
+			await store.recurring.materialize(today());
+			toast(`Agora se repete ${FREQUENCY_PHRASE[repeat]}`);
+			return;
+		}
 		if (categoryId && categoryId !== t.categoryId) offerApplyToSimilar(t, desc, categoryId);
 		else toast('Lançamento atualizado');
 	}
@@ -292,6 +457,7 @@
 	}
 
 	async function remove() {
+		if (rule && (occurrence || scope === 'next')) return removeSeries();
 		const t = original!;
 		const ok = await confirmAction({
 			title: 'Excluir lançamento?',
@@ -309,6 +475,27 @@
 			label: 'Desfazer',
 			run: () => store.transactions.restore(t.id)
 		});
+	}
+
+	/** Excluir numa recorrência: pula só esta, ou encerra a partir desta. */
+	async function removeSeries() {
+		const r = rule!;
+		const from = occurrence?.date ?? original!.date;
+		const all = scope === 'next';
+		const ok = await confirmAction({
+			title: all ? 'Encerrar a recorrência?' : 'Pular esta ocorrência?',
+			message: all
+				? `“${r.description}” deixa de se repetir a partir de ${formatDayShortYear(from)}. As anteriores continuam no extrato.`
+				: `Só a de ${formatDayShortYear(from)} sai; as próximas continuam.`,
+			confirmLabel: all ? 'Encerrar' : 'Pular',
+			destructive: true
+		});
+		if (!ok) return;
+		if (original) await store.transactions.remove(original.id);
+		else await store.recurring.skipOccurrence(r.id, from);
+		if (all) await store.recurring.endBefore(r.id, from);
+		close();
+		toast(all ? 'Recorrência encerrada' : 'Ocorrência pulada');
 	}
 
 	function close() {
@@ -408,6 +595,23 @@
 					</div>
 				{/if}
 
+				{#if kind !== 'transfer' && !(isNew && repeat !== 'none')}
+					<label class="check">
+						<input
+							type="checkbox"
+							bind:checked={consolidated}
+							onchange={() => (consolidatedTouched = true)}
+						/>
+						<span
+							>Consolidado <small
+								>{consolidated
+									? 'já pago ou recebido; conta no saldo'
+									: 'pendente; só conta no saldo depois de confirmado'}</small
+							></span
+						>
+					</label>
+				{/if}
+
 				{#if kind === 'expense' && !isNew}
 					<label class="check">
 						<input type="checkbox" bind:checked={refund} />
@@ -415,7 +619,27 @@
 					</label>
 				{/if}
 
-				{#if isNew && kind !== 'transfer'}
+				{#if rule}
+					<div class="series">
+						<p class="note">
+							Repete {FREQUENCY_PHRASE[rule.frequency]}{rule.endDate
+								? ` até ${formatDayShortYear(rule.endDate)}`
+								: ''}{#if upcoming.length}. Próximas: {upcoming
+									.map((d) => formatDayShort(d))
+									.join(', ')}{/if}.
+						</p>
+						<Segmented
+							label="O que alterar"
+							bind:value={scope}
+							options={[
+								{ value: 'one', label: occurrence ? 'Só esta' : 'Só este' },
+								{ value: 'next', label: occurrence ? 'Esta e as próximas' : 'Este e os próximos' }
+							]}
+						/>
+					</div>
+				{/if}
+
+				{#if showRepeat}
 					<label>
 						<span class="field-label">Repetir</span>
 						<select class="input" bind:value={repeat}>
@@ -424,13 +648,55 @@
 							<option value="monthly">Todo mês</option>
 							<option value="yearly">Todo ano</option>
 						</select>
+						{#if original && !rule && repeat !== 'none'}
+							<span class="hint"
+								>Este lançamento fica como está; a próxima vez é em {formatDayShortYear(
+									firstNext(date, repeat)
+								)}.</span
+							>
+						{/if}
 					</label>
-				{/if}
-
-				{#if original?.recurringId}
-					<p class="note">
-						Gerado por uma recorrência. Para mudar as próximas, use Ajustes › Recorrentes.
-					</p>
+					{#if repeat !== 'none'}
+						<div class="ends">
+							<span class="field-label">Termina</span>
+							<Segmented
+								label="Como a recorrência termina"
+								bind:value={endMode}
+								options={[
+									{ value: 'never', label: 'Sem fim' },
+									{ value: 'date', label: 'Na data' },
+									{ value: 'count', label: 'Nº de vezes' }
+								]}
+							/>
+							{#if endMode === 'date'}
+								<input
+									class="input"
+									type="date"
+									min={date}
+									bind:value={endDate}
+									aria-label="Data de término"
+								/>
+							{:else if endMode === 'count'}
+								<input
+									class="input"
+									type="number"
+									inputmode="numeric"
+									min="2"
+									max="600"
+									bind:value={times}
+									aria-label="Quantidade de vezes, contando esta"
+								/>
+							{/if}
+							{#if errors.endDate}<span class="err">{errors.endDate}</span>
+							{:else}<span class="hint">
+									{#if endMode === 'never'}Repete até você pausar.
+									{:else if lastDate}Última vez em {formatDayShortYear(lastDate)}{endMode ===
+										'count'
+											? `, contando esta como a 1ª de ${times}`
+											: ''}.{/if}
+								</span>{/if}
+						</div>
+					{/if}
 				{/if}
 
 				<label>
@@ -444,7 +710,13 @@
 	{#snippet footer()}
 		<div class="actions">
 			{#if !isNew}
-				<Button variant="danger" onclick={remove}>Excluir</Button>
+				<Button variant="danger" onclick={remove}
+					>{rule && (occurrence || scope === 'next')
+						? scope === 'next'
+							? 'Encerrar'
+							: 'Pular'
+						: 'Excluir'}</Button
+				>
 			{/if}
 			<Button type="submit" form="tx-form" size="lg" block disabled={saving || !hasAccounts}>
 				{isNew ? 'Salvar' : 'Salvar alterações'}
@@ -454,6 +726,16 @@
 </Sheet>
 
 <style>
+	.series {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.ends {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
 	form {
 		display: flex;
 		flex-direction: column;

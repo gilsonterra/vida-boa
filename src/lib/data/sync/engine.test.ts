@@ -55,7 +55,8 @@ const base = {
 	transferId: null,
 	fitId: null,
 	importBatchId: null,
-	recurringId: null
+	recurringId: null,
+	consolidated: true
 };
 
 async function newAccount(store: Awaited<ReturnType<typeof device>>['store']) {

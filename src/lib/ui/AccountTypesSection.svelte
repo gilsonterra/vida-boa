@@ -1,16 +1,15 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	/** Seção de tipos de conta da tela Contas. */
 	import { Plus } from '@lucide/svelte';
-	import { store } from '#lib/data/index.ts';
-	import { ACCOUNT_KIND_LABEL } from '#lib/domain/seed.ts';
-	import type { AccountKind, AccountType } from '#lib/domain/types.ts';
-	import { useAppData } from '#lib/stores/data.svelte.ts';
-	import { confirmAction, toast } from '#lib/stores/ui.svelte.ts';
-	import Button from '#lib/ui/Button.svelte';
-	import IconButton from '#lib/ui/IconButton.svelte';
-	import { ACCOUNT_KIND_ICON } from '#lib/ui/icons.ts';
-	import PageHeader from '#lib/ui/PageHeader.svelte';
-	import Sheet from '#lib/ui/Sheet.svelte';
+	import { store } from '../data';
+	import { ACCOUNT_KIND_LABEL } from '../domain/seed';
+	import type { AccountKind, AccountType } from '../domain/types';
+	import { useAppData } from '../stores/data.svelte';
+	import { confirmAction, toast } from '../stores/ui.svelte';
+	import Button from './Button.svelte';
+	import IconButton from './IconButton.svelte';
+	import { ACCOUNT_KIND_ICON } from './icons';
+	import Sheet from './Sheet.svelte';
 
 	const data = useAppData();
 	let open = $state(false);
@@ -53,19 +52,20 @@
 	}
 </script>
 
-<PageHeader
-	title="Tipos de conta"
-	back={{ href: resolve('/cadastros'), label: 'Cadastros' }}
-	subtitle="A natureza do tipo define como o app trata a conta: cartões guardam dívida, investimentos aparecem separados."
->
-	{#snippet actions()}
+<section class="section">
+	<header>
+		<div>
+			<h2>Tipos de conta</h2>
+			<p>
+				A natureza do tipo define como o app trata a conta: cartões guardam dívida, investimentos
+				aparecem separados.
+			</p>
+		</div>
 		<IconButton tone="hi" label="Novo tipo" onclick={() => edit(null)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
-	{/snippet}
-</PageHeader>
+	</header>
 
-<div class="page">
 	<ul>
 		{#each data.types as t (t.id)}
 			{@const Icon = ACCOUNT_KIND_ICON[t.kind]}
@@ -81,7 +81,7 @@
 			</li>
 		{/each}
 	</ul>
-</div>
+</section>
 
 <Sheet bind:open title={editing ? 'Editar tipo' : 'Novo tipo de conta'}>
 	<form id="type-form" onsubmit={save} novalidate>
@@ -110,8 +110,23 @@
 </Sheet>
 
 <style>
-	.page {
-		padding-inline: 20px;
+	.section {
+		margin-top: 36px;
+	}
+	header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 12px;
+	}
+	h2 {
+		font-size: 20px;
+	}
+	header p {
+		margin-top: 4px;
+		font-size: 13px;
+		color: var(--ink-2);
 	}
 	.item {
 		width: 100%;

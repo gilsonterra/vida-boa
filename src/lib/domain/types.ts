@@ -72,6 +72,12 @@ export interface Transaction extends Entity {
 	fitId: string | null;
 	importBatchId: ID | null;
 	recurringId: ID | null;
+	/**
+	 * Confirmado (pago/recebido): só consolidados contam no saldo, seja qual for a data.
+	 * Ao criar, nasce consolidado a não ser que a data seja futura; importados do banco e
+	 * transferências são sempre consolidados. Regras em `ledger.ts`.
+	 */
+	consolidated: boolean;
 }
 
 export type Frequency = 'weekly' | 'monthly' | 'yearly';
@@ -137,6 +143,11 @@ export interface Loan extends Entity {
 	firstDueDate: ISODate;
 	/** Parcelas pagas antes de cadastrar no app: contam como pagas, sem gerar lançamento. */
 	paidBefore: number;
+	/**
+	 * Parcelas consolidadas (pagas), pelo número: `{ "3": true }`. As que não estão aqui estão
+	 * pendentes, seja qual for o vencimento; as de `paidBefore` sempre contam como pagas.
+	 */
+	installmentStatus?: Record<string, boolean>;
 }
 
 /** O que uma amortização extra reduz: o número de parcelas ou o valor de cada uma. */

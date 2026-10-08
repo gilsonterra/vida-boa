@@ -1,16 +1,16 @@
 <script lang="ts">
+	/** Seção de financiamentos da tela Contas: totais e um cartão por contrato. */
 	import { resolve } from '$app/paths';
 	import { Car, HandCoins, House, Plus, Wallet } from '@lucide/svelte';
-	import { formatDayShort, today } from '#lib/domain/dates.ts';
-	import { LOAN_KIND_LABEL, outstandingAt, paidInstallments } from '#lib/domain/loans.ts';
-	import type { Loan } from '#lib/domain/types.ts';
-	import { useAppData } from '#lib/stores/data.svelte.ts';
-	import Amount from '#lib/ui/Amount.svelte';
-	import Button from '#lib/ui/Button.svelte';
-	import EmptyState from '#lib/ui/EmptyState.svelte';
-	import IconButton from '#lib/ui/IconButton.svelte';
-	import LoanEditor from '#lib/ui/LoanEditor.svelte';
-	import PageHeader from '#lib/ui/PageHeader.svelte';
+	import { formatDayShort, today } from '../domain/dates';
+	import { LOAN_KIND_LABEL, outstandingAt } from '../domain/loans';
+	import type { Loan } from '../domain/types';
+	import { useAppData } from '../stores/data.svelte';
+	import Amount from './Amount.svelte';
+	import Button from './Button.svelte';
+	import EmptyState from './EmptyState.svelte';
+	import IconButton from './IconButton.svelte';
+	import LoanEditor from './LoanEditor.svelte';
 
 	const data = useAppData();
 	const now = today();
@@ -22,13 +22,13 @@
 		data.loans
 			.map((loan) => {
 				const schedule = data.schedules.get(loan.id)!;
-				const paid = paidInstallments(loan, schedule, now);
+				const paid = data.paid.get(loan.id)!;
 				const next = schedule.installments.find((i) => !paid.has(i.n));
 				return {
 					loan,
 					total: schedule.installments.length,
 					paid: paid.size,
-					balance: outstandingAt(schedule, now),
+					balance: outstandingAt(schedule, now, paid),
 					next
 				};
 			})
@@ -49,19 +49,17 @@
 	const href = (l: Loan) => resolve('/financiamentos/[id]', { id: l.id });
 </script>
 
-<PageHeader
-	title="Financiamentos"
-	back={{ href: resolve('/cadastros'), label: 'Cadastros' }}
-	subtitle="Imóvel, veículo, empréstimos: parcelas lançadas sozinhas e o saldo devedor sempre em dia."
->
-	{#snippet actions()}
+<section class="section">
+	<header>
+		<div>
+			<h2>Financiamentos</h2>
+			<p>Imóvel, veículo, empréstimos: marque as parcelas pagas e acompanhe o saldo devedor.</p>
+		</div>
 		<IconButton tone="hi" label="Novo financiamento" onclick={() => (editorOpen = true)}
 			><Plus size={22} strokeWidth={1.6} /></IconButton
 		>
-	{/snippet}
-</PageHeader>
+	</header>
 
-<div class="page">
 	{#if rows.length}
 		<div class="totals">
 			<div>
@@ -107,13 +105,28 @@
 			<Button onclick={() => (editorOpen = true)}>Novo financiamento</Button>
 		</EmptyState>
 	{/if}
-</div>
+</section>
 
 <LoanEditor bind:open={editorOpen} />
 
 <style>
-	.page {
-		padding-inline: 20px;
+	.section {
+		margin-top: 36px;
+	}
+	header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 12px;
+	}
+	h2 {
+		font-size: 20px;
+	}
+	header p {
+		margin-top: 4px;
+		font-size: 13px;
+		color: var(--ink-2);
 	}
 	.totals {
 		display: grid;
